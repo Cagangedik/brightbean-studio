@@ -498,11 +498,20 @@ def _activate_two_phase(request, *, session_id, attempt, expected_org, user):
         _queue_pending_activation(user, session_id)
         raise _DeferredToWorker
 
-    # Final local commit.
-    return _finalize_local_subscription(
-        request, attempt=attempt, expected_org=expected_org,
-        commit_resp=commit_resp,
-    )
+    # Final local commit. Wrap in the same transient handler as the
+    # phase calls above so a rotate-key failure during lost-key recovery
+    # also defers to the worker rather than escaping as 500 (and rather
+    # than marking the sub ACTIVE without an api_key — see the lost-key
+    # branch in ``_finalize_local_subscription``).
+    try:
+        return _finalize_local_subscription(
+            request, attempt=attempt, expected_org=expected_org,
+            commit_resp=commit_resp,
+        )
+    except (ServiceUnavailable, IntelligenceClientError):
+        logger.exception("Finalize transient failure; deferring to worker")
+        _queue_pending_activation(user, session_id)
+        raise _DeferredToWorker
 
 
 def _queue_pending_activation(user, session_id: str):
@@ -538,16 +547,28 @@ def _finalize_local_subscription(request, *, attempt, expected_org,
         elif not sub.intelligence_api_key:
             # Lost-key recovery: server cached the response but we don't
             # have the plaintext. Rotate.
+            #
+            # If rotation fails, we MUST NOT mark the sub ACTIVE — an
+            # active sub with no api_key produces an unusable state
+            # (every tool call hits ``IntelligenceAPIClient(api_key="")``
+            # and raises ValueError, which escapes the typed
+            # IntelligenceClientError path in ``_call_tool``). Raise so
+            # the caller defers to the worker, which re-enters the same
+            # flow and tries rotation again with exponential backoff.
             try:
                 rot = _client().rotate_key(
                     user_id=commit_resp["user_id"],
                     external_org_id=str(expected_org.id),
                     idempotency_key=f"rotate-{expected_org.id}-{int(time.time())}",
                 )
-                sub.intelligence_api_key = rot["api_key"]
-                sub.intelligence_api_key_prefix = rot["api_key"][:8]
             except IntelligenceClientError:
-                logger.exception("rotate-key fallback failed")
+                logger.exception(
+                    "rotate-key fallback failed; deferring to worker "
+                    "rather than activating without an api_key",
+                )
+                raise
+            sub.intelligence_api_key = rot["api_key"]
+            sub.intelligence_api_key_prefix = rot["api_key"][:8]
 
         sub.intelligence_account_id = str(commit_resp.get("user_id") or "")
         sub.plan_slug = commit_resp.get("plan_slug", "")
