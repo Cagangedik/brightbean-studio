@@ -417,12 +417,42 @@ INTELLIGENCE_ENABLED = all([
 ])
 
 if INTELLIGENCE_ENABLED:
-    # Security invariant — must be raised (not asserted) because
-    # ``python -O`` strips assertions. Open-redirect defense + Stripe
-    # success-URL constraint depend on this.
+    # Security invariants — raised (not asserted) because ``python -O``
+    # strips assertions. Open-redirect defense + Stripe success-URL
+    # constraint + bearer-key-transit confidentiality all depend on
+    # these being enforced at boot rather than per-request.
     from django.core.exceptions import ImproperlyConfigured
+    from urllib.parse import urlparse as _urlparse
 
     if not STUDIO_BASE_URL.startswith("https://"):
         raise ImproperlyConfigured(
             "STUDIO_BASE_URL must be https:// when Intelligence is enabled."
         )
+
+    # The Intelligence URLs carry sensitive material in BOTH directions:
+    # /activate-commit and /rotate-key return plaintext API keys in the
+    # response body, and every /v1/* tool call sends the per-org bearer
+    # in the Authorization header. Plain http would leak both to any
+    # observer on the wire. Require https:// in production while still
+    # allowing http://localhost or http://127.0.0.1 for local dev (the
+    # ngrok-fronted Studio talks to a loopback Intelligence over plain
+    # HTTP — same machine, same kernel, no wire to observe).
+    def _is_secure_intelligence_url(url: str) -> bool:
+        if url.startswith("https://"):
+            return True
+        try:
+            host = (_urlparse(url).hostname or "").lower()
+        except ValueError:
+            return False
+        return host in {"localhost", "127.0.0.1", "::1"}
+
+    for _name, _url in (
+        ("INTELLIGENCE_INTERNAL_URL", INTELLIGENCE_INTERNAL_URL),
+        ("INTELLIGENCE_PUBLIC_URL", INTELLIGENCE_PUBLIC_URL),
+    ):
+        if not _is_secure_intelligence_url(_url):
+            raise ImproperlyConfigured(
+                f"{_name} must be https:// (http:// is only accepted for "
+                f"localhost / 127.0.0.1 dev tunnels) — current value would "
+                f"leak Intelligence API keys in transit."
+            )
