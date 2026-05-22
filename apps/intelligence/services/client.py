@@ -283,6 +283,18 @@ class InternalClient:
         except Exception:  # noqa: BLE001
             body = {"raw": resp.text}
         code = (body or {}).get("code", "")
+        # Intelligence's /internal/v1/ endpoints normally respond with
+        # ``{"code": "..."}`` on errors, but DRF's AuthenticationFailed
+        # is rendered through the global ``api_exception_handler`` as
+        # ``{"error": {"status": 401, "detail": "<code_string>"}}``.
+        # Fall back to that detail string so 401s like
+        # ``deployment_not_authorized`` and ``unknown_deployment`` are
+        # classified correctly (DeploymentNotAuthorized) rather than
+        # collapsed into the generic InvalidApiKey path below.
+        if not code:
+            err = (body or {}).get("error") or {}
+            if isinstance(err, dict):
+                code = err.get("detail") or ""
         msg = (body or {}).get("message") or code or resp.text or "error"
 
         if resp.status_code == 401:
