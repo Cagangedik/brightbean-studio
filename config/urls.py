@@ -37,5 +37,27 @@ urlpatterns = [
     path("", include("apps.accounts.urls_root")),
 ]
 
+# ---------------------------------------------------------------------------
+# Intelligence integration — mounted only when env vars are set.
+# Two prefixes:
+#   /orgs/<uuid:org_id>/intelligence/*  — org-scoped surfaces (playground,
+#                                          subscribe, checkout, tools, …)
+#   /intelligence/*                     — non-org-scoped (Stripe success
+#                                          URL + user-scoped finalizing)
+# ---------------------------------------------------------------------------
+if settings.INTELLIGENCE_ENABLED:
+    from apps.intelligence import urls as intelligence_urls
+
+    urlpatterns += [
+        path(
+            "orgs/<uuid:org_id>/intelligence/",
+            include((intelligence_urls.org_scoped_patterns, "intelligence")),
+        ),
+        path(
+            "intelligence/",
+            include((intelligence_urls.user_scoped_patterns, "intelligence")),
+        ),
+    ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -107,6 +107,7 @@ TEMPLATES = [
                 "apps.notifications.context_processors.unread_notification_count",
                 "apps.common.context_processors.sidebar_context",
                 "apps.onboarding.context_processors.onboarding_checklist",
+                "apps.intelligence.context_processors.intelligence_flag",
             ],
         },
     },
@@ -392,3 +393,36 @@ YOUTUBE_WEBHOOK_SECRET = env("YOUTUBE_WEBHOOK_SECRET", default="")
 # Rate limiting
 RATELIMIT_ENABLE = not DEBUG
 RATELIMIT_USE_CACHE = "default"
+
+
+# ---------------------------------------------------------------------------
+# Intelligence integration (optional hosted SaaS)
+# ---------------------------------------------------------------------------
+# All five env vars must be set for the integration to be active. Missing
+# any one → INTELLIGENCE_ENABLED is False and the entire surface is hidden:
+# no left-nav item, no /orgs/<id>/intelligence/ URLs, no /intelligence/
+# routes. Self-hosters who don't set these get vanilla OSS Studio.
+INTELLIGENCE_INTERNAL_URL = env("INTELLIGENCE_INTERNAL_URL", default="")
+INTELLIGENCE_PUBLIC_URL = env("INTELLIGENCE_PUBLIC_URL", default="")
+STUDIO_DEPLOYMENT_ID = env("STUDIO_DEPLOYMENT_ID", default="")
+STUDIO_SHARED_SECRET = env("STUDIO_SHARED_SECRET", default="")
+STUDIO_BASE_URL = env("STUDIO_BASE_URL", default="")
+
+INTELLIGENCE_ENABLED = all([
+    INTELLIGENCE_INTERNAL_URL.strip(),
+    INTELLIGENCE_PUBLIC_URL.strip(),
+    STUDIO_DEPLOYMENT_ID.strip(),
+    STUDIO_SHARED_SECRET.strip(),
+    STUDIO_BASE_URL.strip(),
+])
+
+if INTELLIGENCE_ENABLED:
+    # Security invariant — must be raised (not asserted) because
+    # ``python -O`` strips assertions. Open-redirect defense + Stripe
+    # success-URL constraint depend on this.
+    from django.core.exceptions import ImproperlyConfigured
+
+    if not STUDIO_BASE_URL.startswith("https://"):
+        raise ImproperlyConfigured(
+            "STUDIO_BASE_URL must be https:// when Intelligence is enabled."
+        )
