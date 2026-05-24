@@ -20,7 +20,8 @@
                     {% if content_gap_niches %}
                     {{ content_gap_niches|json_script:"cg-niche-data" }}
                     <div id="cg-niche-combobox" class="relative">
-                        <input type="hidden" name="niche" id="cg-niche" required>
+                        <input type="hidden" name="niche" id="cg-niche" required
+                               value="{% if is_preview %}{{ preview_inputs.research_content_gaps.niche_slug }}{% endif %}">
                         {% comment %}
                           The trigger reuses .intel-input for chrome (border,
                           padding, hover, focus ring) but .intel-input sets
@@ -37,7 +38,11 @@
                                 aria-controls="cg-niche-listbox"
                                 class="intel-input w-full text-left"
                                 style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            {% if is_preview %}
+                            <span class="cg-niche-label truncate text-stone-900">{{ preview_inputs.research_content_gaps.niche_name }} ({{ preview_inputs.research_content_gaps.niche_slug }})</span>
+                            {% else %}
                             <span class="cg-niche-label truncate text-stone-400">Choose a niche…</span>
+                            {% endif %}
                             <svg class="cg-niche-chevron h-4 w-4 flex-shrink-0 text-stone-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
                             </svg>
@@ -136,7 +141,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="content-gaps-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Submit a niche to see ranked opportunities." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_research_content_gaps_result.html" with result=preview_results.research_content_gaps %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Submit a niche to see ranked opportunities." %}
+            {% endif %}
         </div>
     </div>
 </div>

@@ -30,7 +30,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="list-niches-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Click Fetch niches to see the catalog." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_list_niches_result.html" with result=preview_results.list_niches %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Click Fetch niches to see the catalog." %}
+            {% endif %}
         </div>
     </div>
 </div>

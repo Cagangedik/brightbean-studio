@@ -18,6 +18,7 @@
                     <label for="bc-url" class="intel-label">Channel URL or @handle</label>
                     <input type="text" name="url" id="bc-url" required maxlength="1024"
                            placeholder="https://youtube.com/@theo-t3-gg"
+                           value="{% if is_preview %}{{ preview_inputs.benchmark_channel.url }}{% endif %}"
                            class="intel-input">
                     <p class="intel-helper">Accepts <code class="font-mono text-[11px]">@handle</code>, <code class="font-mono text-[11px]">/channel/UC…</code>, <code class="font-mono text-[11px]">/c/&lt;name&gt;</code>, or <code class="font-mono text-[11px]">/user/&lt;legacy&gt;</code>.</p>
                 </div>
@@ -36,7 +37,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="benchmark-channel-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Submit a channel URL to see niche percentiles." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_benchmark_channel_result.html" with result=preview_results.benchmark_channel %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Submit a channel URL to see niche percentiles." %}
+            {% endif %}
         </div>
     </div>
 </div>

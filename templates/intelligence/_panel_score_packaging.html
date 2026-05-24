@@ -36,6 +36,7 @@
                     <label for="pkg-title" class="intel-label">Video title <span class="intel-label-hint">(optional)</span></label>
                     <input type="text" name="title" id="pkg-title" maxlength="250"
                            placeholder="How I Built a $1M SaaS in 6 Months"
+                           value="{% if is_preview %}{{ preview_inputs.score_packaging.title }}{% endif %}"
                            class="intel-input">
                 </div>
                 <div>
@@ -90,7 +91,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="packaging-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Submit the form to see the predicted CTR + percentile." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_score_packaging_result.html" with result=preview_results.score_packaging %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Submit the form to see the predicted CTR + percentile." %}
+            {% endif %}
         </div>
     </div>
 </div>

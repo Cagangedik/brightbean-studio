@@ -18,6 +18,7 @@
                     <label for="bv-url" class="intel-label">Video URL</label>
                     <input type="url" name="url" id="bv-url" required maxlength="1024"
                            placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ"
+                           value="{% if is_preview %}{{ preview_inputs.benchmark_video.url }}{% endif %}"
                            class="intel-input">
                     <p class="intel-helper">Accepts <code class="font-mono text-[11px]">watch?v=…</code>, <code class="font-mono text-[11px]">youtu.be/…</code>, <code class="font-mono text-[11px]">shorts/…</code>, or <code class="font-mono text-[11px]">embed/…</code>.</p>
                 </div>
@@ -36,7 +37,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="benchmark-video-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Submit a video URL to see niche percentiles." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_benchmark_video_result.html" with result=preview_results.benchmark_video %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Submit a video URL to see niche percentiles." %}
+            {% endif %}
         </div>
     </div>
 </div>

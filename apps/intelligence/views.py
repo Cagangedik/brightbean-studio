@@ -192,10 +192,30 @@ def playground(request, org_id):
             logger.exception("/pending-activation lookup failed; suppressing")
             pending = None
 
-    # Niche catalog for the content-gaps panel's combobox. Best-effort —
-    # if Intelligence is unreachable or the call fails, the template
-    # falls back to a free-form text input.
-    content_gap_niches = _niches_for(sub) if sub else None
+    # Preview mode = the org has no active subscription. In that case
+    # we render the playground as a fully interactive showcase: every
+    # panel pre-fills realistic inputs and the result area shows a
+    # canned example via the SAME result partial that a real API call
+    # would render, so users see exactly what they get before they
+    # pay. The paywall fires only when they actually click a submit
+    # button (server-side ``@intelligence_subscription_required``).
+    is_preview = sub is None or sub.status != "active"
+
+    if is_preview:
+        from . import preview_data
+        preview_inputs = preview_data.PREVIEW_INPUTS
+        preview_results = preview_data.PREVIEW_RESULTS
+        # Skip the billed /v1/research/niches call in preview mode —
+        # render the combobox against a fixed sample so the UX is the
+        # same shape as the live one.
+        content_gap_niches = preview_results["list_niches"]["niches"]
+    else:
+        preview_inputs = None
+        preview_results = None
+        # Niche catalog for the content-gaps panel's combobox.
+        # Best-effort — if Intelligence is unreachable the template
+        # falls back to a free-form text input.
+        content_gap_niches = _niches_for(sub)
 
     context = {
         "organization": request.org,
@@ -204,6 +224,9 @@ def playground(request, org_id):
         "me": me,
         "can_manage_billing": can_manage_billing,
         "content_gap_niches": content_gap_niches,
+        "is_preview": is_preview,
+        "preview_inputs": preview_inputs,
+        "preview_results": preview_results,
     }
     response = render(request, "intelligence/playground.html", context)
     # Throttled background refresh — keeps the local mirror fresh without

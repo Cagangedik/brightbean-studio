@@ -18,6 +18,7 @@
                     <label for="vh-url" class="intel-label">YouTube URL</label>
                     <input type="url" name="youtube_url" id="vh-url" required maxlength="1024"
                            placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                           value="{% if is_preview %}{{ preview_inputs.score_video_hook.youtube_url }}{% endif %}"
                            class="intel-input">
                     <p class="intel-helper">Accepts <code class="font-mono text-[11px]">watch?v=…</code>, <code class="font-mono text-[11px]">youtu.be/…</code>, <code class="font-mono text-[11px]">shorts/…</code>, or <code class="font-mono text-[11px]">embed/…</code>.</p>
                 </div>
@@ -37,7 +38,12 @@
             <h2 class="text-sm font-semibold text-stone-900">Result</h2>
         </div>
         <div id="video-hook-result" class="p-5 min-h-[220px]">
-            {% include "intelligence/_panel_empty_state.html" with hint="Submit a URL to score the first 6 seconds." %}
+            {% if is_preview %}
+                {% include "intelligence/_preview_badge.html" %}
+                {% include "intelligence/_score_video_hook_result.html" with result=preview_results.score_video_hook %}
+            {% else %}
+                {% include "intelligence/_panel_empty_state.html" with hint="Submit a URL to score the first 6 seconds." %}
+            {% endif %}
         </div>
     </div>
 </div>
