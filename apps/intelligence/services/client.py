@@ -319,6 +319,16 @@ class InternalClient:
                 raise DeploymentNotAuthorized(msg, status_code=401, code=code, body=body)
             raise InvalidApiKey(msg, status_code=401, code=code, body=body)
         if resp.status_code == 402:
+            # Intelligence reuses HTTP 402 for two distinct cases:
+            #   * the user has run out of credits (InsufficientCredits)
+            #   * an activation Phase-1 check failed because the Stripe
+            #     session isn't actually paid (``not_paid``).
+            # The latter is a business-logic rejection that the activate
+            # view renders cleanly; misclassifying it as
+            # InsufficientCredits drops it into the worker-fallback path
+            # and surfaces as a 500. Disambiguate via the response code.
+            if code in _ACTIVATION_REJECTED_CODES:
+                raise ActivationRejected(msg, status_code=402, code=code, body=body)
             raise InsufficientCredits(msg, status_code=402, code=code, body=body)
         if resp.status_code == 403:
             if code == "deployment_not_authorized":

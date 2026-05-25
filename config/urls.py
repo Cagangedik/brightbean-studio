@@ -39,11 +39,18 @@ urlpatterns = [
 
 # ---------------------------------------------------------------------------
 # Intelligence integration — mounted only when env vars are set.
-# Two prefixes:
-#   /orgs/<uuid:org_id>/intelligence/*  — org-scoped surfaces (playground,
+# Two prefixes, DIFFERENT namespaces:
+#   /orgs/<uuid:org_id>/intelligence/*  — org-scoped surfaces under
+#                                          namespace ``intelligence`` (playground,
 #                                          subscribe, checkout, tools, …)
-#   /intelligence/*                     — non-org-scoped (Stripe success
+#   /intelligence/*                     — non-org-scoped under namespace
+#                                          ``intelligence_global`` (Stripe success
 #                                          URL + user-scoped finalizing)
+#
+# Both used to share the namespace ``intelligence`` which caused only the
+# first include's names to be reachable via ``reverse()`` — activate,
+# finalizing, finalizing-status (in the second include) were orphaned and
+# any redirect/url-tag to them blew up with NoReverseMatch.
 # ---------------------------------------------------------------------------
 if settings.INTELLIGENCE_ENABLED:
     from apps.intelligence import urls as intelligence_urls
@@ -55,7 +62,7 @@ if settings.INTELLIGENCE_ENABLED:
         ),
         path(
             "intelligence/",
-            include((intelligence_urls.user_scoped_patterns, "intelligence")),
+            include((intelligence_urls.user_scoped_patterns, "intelligence_global")),
         ),
     ]
 

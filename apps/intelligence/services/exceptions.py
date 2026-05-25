@@ -80,6 +80,18 @@ class ActivationRejected(IntelligenceClientError):
             ),
             "not_paid": "Stripe is still processing your payment.",
             "session_not_found": "We couldn't find your Stripe payment session.",
+            "session_incomplete": (
+                "Your Stripe checkout isn't complete yet. Finish payment in "
+                "Stripe, then come back."
+            ),
+            "wrong_mode": (
+                "This Stripe session isn't a subscription. Start a new checkout "
+                "from the Activate page to create a subscription."
+            ),
+            "no_line_items": (
+                "Your Stripe session has no plan attached. Start a new "
+                "checkout from the Activate page."
+            ),
             "unknown_checkout_attempt": (
                 "We can't find a checkout we initiated for this payment. "
                 "If you just paid, please refresh the page in a moment."
@@ -89,6 +101,33 @@ class ActivationRejected(IntelligenceClientError):
             ),
             "token_already_consumed": (
                 "This activation has already been processed. Please refresh."
+            ),
+            "missing_subscription_id": (
+                "Stripe didn't return a subscription for this session. Start "
+                "a new checkout from the Activate page."
+            ),
+            "unknown_plan": (
+                "The plan attached to this Stripe session isn't recognised. "
+                "Pick a plan from the Activate page to start a fresh checkout."
+            ),
+            "unmapped_price": (
+                "The price you paid isn't currently mapped to a plan. Please "
+                "contact support so we can reconcile it."
+            ),
+            "no_pending_activation": (
+                "We don't have a pending activation for this organisation. "
+                "Start a new checkout from the Activate page."
+            ),
+            "session_id_mismatch": (
+                "The Stripe session you provided doesn't match the pending "
+                "activation for this organisation."
+            ),
+            "invalid_token": (
+                "Your activation token isn't valid. Please refresh and try again."
+            ),
+            "token_deployment_mismatch": (
+                "Your activation token was minted by a different deployment. "
+                "Please refresh and try again."
             ),
         }.get(self.code or "", "We couldn't complete activation. Please contact support.")
 

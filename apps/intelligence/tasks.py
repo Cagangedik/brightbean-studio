@@ -226,7 +226,7 @@ def _reschedule_or_fail(pending: PendingActivation, exc: Exception):
     pending.last_error = f"{type(exc).__name__}: {exc}"
     pending.save(update_fields=["status", "last_error", "updated_at"])
     delay = BACKOFF_SECONDS[min(pending.attempts - 1, len(BACKOFF_SECONDS) - 1)]
-    provision_intelligence_account_via_session(pending.id, schedule=delay)
+    provision_intelligence_account_via_session(str(pending.id), schedule=delay)
 
 
 # ---------------------------------------------------------------------------

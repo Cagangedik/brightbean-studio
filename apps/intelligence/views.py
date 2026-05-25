@@ -482,6 +482,7 @@ def activate(request):
         return render(request, "intelligence/activation_failed.html", {
             "code": "unknown_session",
             "message": "We don't recognize this Stripe session.",
+            "organization": None,
         }, status=400)
 
     org = attempt.organization
@@ -502,7 +503,7 @@ def activate(request):
     except _DeferredToWorker:
         # Fallback path, PendingActivation already persisted in
         # ``_activate_two_phase``. Send the user to the finalizing page.
-        return redirect("intelligence:finalizing")
+        return redirect("intelligence_global:finalizing")
 
 
 class _DeferredToWorker(Exception):
@@ -528,11 +529,30 @@ def _activate_two_phase(request, *, session_id, attempt, expected_org, user):
         logger.warning("Activation preflight rejected: code=%s", exc.code)
         return render(request, "intelligence/activation_failed.html", {
             "code": exc.code, "message": exc.user_message,
+            "organization": expected_org,
         }, status=exc.status_code or 400)
-    except (ServiceUnavailable, IntelligenceClientError):
+    except ServiceUnavailable:
+        # 5xx / network error — genuinely transient, defer to worker.
         logger.exception("Preflight transient failure; deferring to worker")
         _queue_pending_activation(user, session_id)
         raise _DeferredToWorker
+    except IntelligenceClientError as exc:
+        # Any other 4xx — bad request, conflict, etc. These are permanent
+        # for the same payload; the worker would just spin on them. Surface
+        # to the user instead of pretending to "finalize" forever.
+        logger.error(
+            "Preflight permanent client error: code=%s status=%s body=%s",
+            getattr(exc, "code", None), getattr(exc, "status_code", None),
+            getattr(exc, "body", None),
+        )
+        return render(request, "intelligence/activation_failed.html", {
+            "code": getattr(exc, "code", "") or "preflight_failed",
+            "message": (
+                "We couldn't complete activation. Please refresh and try "
+                "again, or contact support if this persists."
+            ),
+            "organization": expected_org,
+        }, status=getattr(exc, "status_code", 400) or 400)
 
     resolved_org_id = preflight.get("resolved_external_org_id")
     if str(expected_org.id) != str(resolved_org_id):
@@ -566,11 +586,29 @@ def _activate_two_phase(request, *, session_id, attempt, expected_org, user):
     except ActivationRejected as exc:
         return render(request, "intelligence/activation_failed.html", {
             "code": exc.code, "message": exc.user_message,
+            "organization": expected_org,
         }, status=exc.status_code or 400)
-    except (ServiceUnavailable, IntelligenceClientError):
+    except ServiceUnavailable:
+        # 5xx / network error — genuinely transient, defer to worker.
         logger.exception("Commit transient failure; deferring to worker")
         _queue_pending_activation(user, session_id)
         raise _DeferredToWorker
+    except IntelligenceClientError as exc:
+        # 4xx — permanent for the same payload; surface to the user
+        # instead of spinning the worker.
+        logger.error(
+            "Commit permanent client error: code=%s status=%s body=%s",
+            getattr(exc, "code", None), getattr(exc, "status_code", None),
+            getattr(exc, "body", None),
+        )
+        return render(request, "intelligence/activation_failed.html", {
+            "code": getattr(exc, "code", "") or "commit_failed",
+            "message": (
+                "We couldn't complete activation. Please refresh and try "
+                "again, or contact support if this persists."
+            ),
+            "organization": expected_org,
+        }, status=getattr(exc, "status_code", 400) or 400)
 
     # Final local commit. Wrap in the same transient handler as the
     # phase calls above so a rotate-key failure during lost-key recovery
@@ -596,7 +634,10 @@ def _queue_pending_activation(user, session_id: str):
         user=user, session_id=session_id,
         defaults={"status": PendingActivation.Status.PENDING},
     )
-    provision_intelligence_account_via_session(pending.id, schedule=0)
+    # ``pending.id`` is a UUID; django-background-tasks JSON-encodes
+    # task args, and UUID is not JSON-serializable. Pass the string form
+    # to avoid a "Object of type UUID is not JSON serializable" 500.
+    provision_intelligence_account_via_session(str(pending.id), schedule=0)
 
 
 def _finalize_local_subscription(request, *, attempt, expected_org,
@@ -742,7 +783,7 @@ def recover(request, org_id):
             expected_org=request.org, user=request.user,
         )
     except _DeferredToWorker:
-        return redirect("intelligence:finalizing")
+        return redirect("intelligence_global:finalizing")
 
 
 # ---------------------------------------------------------------------------
