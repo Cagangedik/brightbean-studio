@@ -268,7 +268,12 @@ CSP_IMG_SRC = ("'self'", "data:", "blob:", "https:")
 CSP_FONT_SRC = ("'self'",)
 CSP_CONNECT_SRC = ("'self'",)
 CSP_MEDIA_SRC = ("'self'", "blob:")
-CSP_FORM_ACTION = ("'self'", "https://accounts.google.com")
+CSP_FORM_ACTION = (
+    "'self'",
+    "https://accounts.google.com",
+    "https://checkout.stripe.com",
+    "https://billing.stripe.com",
+)
 CSP_INCLUDE_NONCE_IN = ["script-src"]
 
 # Allow media/images from the storage domain in CSP
