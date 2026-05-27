@@ -20,9 +20,11 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.template import Context as DjangoContext
 from django.template import Template as DjangoTemplate
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.urls import include, path
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.intelligence import urls as intelligence_urls
 from apps.intelligence import views
 from apps.intelligence.models import StudioCheckoutAttempt
 from apps.intelligence.services.client import InternalClient
@@ -34,6 +36,24 @@ from apps.members.models import OrgMembership
 from apps.organizations.models import Organization
 
 _BASE_URL = "https://intel.example.com/internal/v1"
+
+
+# Module-level urlpatterns used by ``SubscribeTemplateBranchingTests`` via
+# ``@override_settings(ROOT_URLCONF=...)``. The intelligence routes are
+# feature-gated in production (``config/urls.py`` only registers them when
+# ``settings.INTELLIGENCE_ENABLED`` is True) and the test settings don't
+# set the required env vars, so the namespace isn't registered against the
+# default ROOT_URLCONF. The template under test references
+# ``{% url 'intelligence:checkout' %}`` and ``{% url 'intelligence:discard-checkout' %}``,
+# which would raise NoReverseMatch without this. Mounting at the same
+# ``orgs/<uuid:org_id>/intelligence/`` prefix as config/urls.py uses keeps
+# the rendered URLs identical to production.
+urlpatterns = [
+    path(
+        "orgs/<uuid:org_id>/intelligence/",
+        include((intelligence_urls.org_scoped_patterns, "intelligence")),
+    ),
+]
 
 
 def _attach_session_and_messages(request):
@@ -273,6 +293,7 @@ class DiscardCheckoutViewTests(TestCase):
 # ---------------------------------------------------------------------------
 
 
+@override_settings(ROOT_URLCONF="apps.intelligence.tests.test_discard_checkout")
 class SubscribeTemplateBranchingTests(TestCase):
     """Render the {% block content %} body of subscribe.html in isolation.
 
