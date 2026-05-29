@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 
 from .linkedin import API_BASE, LINKEDIN_HEADERS, LinkedInProvider
-from .types import AccountProfile
 
 logger = logging.getLogger(__name__)
 

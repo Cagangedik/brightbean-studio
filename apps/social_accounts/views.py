@@ -348,15 +348,25 @@ def oauth_callback(request, platform):
                 }
                 return redirect("social_accounts:select_account")
             else:
-                messages.warning(
-                    request,
-                    "No Facebook Pages were found for your account. "
-                    "Only Pages can be connected — personal profiles are not "
-                    "supported by the Facebook API. "
-                    "If you expected to see a Page, make sure you have admin "
-                    "access and try removing the app in Facebook Settings \u2192 "
-                    "Business Integrations, then reconnect.",
-                )
+                if platform == PlatformCredential.Platform.LINKEDIN_COMPANY:
+                    warning = (
+                        "No LinkedIn Company Pages were found for your account. "
+                        "Only Company Pages you administer can be connected — "
+                        "personal profiles connect via the LinkedIn (Personal) option. "
+                        "If you expected to see a Page, ask the page owner to grant "
+                        "you Admin access in LinkedIn \u2192 Admin tools \u2192 "
+                        "Manage admins, then reconnect."
+                    )
+                else:
+                    warning = (
+                        "No Facebook Pages were found for your account. "
+                        "Only Pages can be connected — personal profiles are not "
+                        "supported by the Facebook API. "
+                        "If you expected to see a Page, make sure you have admin "
+                        "access and try removing the app in Facebook Settings \u2192 "
+                        "Business Integrations, then reconnect."
+                    )
+                messages.warning(request, warning)
                 return redirect("social_accounts:list", workspace_id=workspace_id)
 
         # Standard single-account flow (non-Facebook/Instagram platforms)
