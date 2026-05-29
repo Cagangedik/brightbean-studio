@@ -52,11 +52,13 @@ class LinkedInCompanyProvider(LinkedInProvider):
                 identifiers = elements[0].get("identifiers", [])
                 if identifiers:
                     logo_url = identifiers[0].get("identifier")
-            pages.append({
-                "id": str(org_id),
-                "name": org.get("localizedName", ""),
-                "handle": org.get("vanityName", ""),
-                "access_token": access_token,
-                "picture": logo_url,
-            })
+            pages.append(
+                {
+                    "id": str(org_id),
+                    "name": org.get("localizedName", ""),
+                    "handle": org.get("vanityName", ""),
+                    "access_token": access_token,
+                    "picture": logo_url,
+                }
+            )
         return pages
