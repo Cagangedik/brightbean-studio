@@ -388,18 +388,22 @@
                                 </div>
                             </div>
                             {% endif %}
-                            <button type="button" @click="showTemplatePicker = !showTemplatePicker"
+                            <button type="button"
+                                    @click="showTemplatePicker = !showTemplatePicker; if (showTemplatePicker) $nextTick(() => htmx.trigger($refs.templatePicker, 'load-picker'))"
                                     class="text-xs font-semibold py-1.5 px-3 rounded-full border border-stone-200 text-stone-500 hover:border-stone-300 hover:text-stone-700 transition-colors flex items-center gap-1">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                 Use Template
                             </button>
                             <!-- Template picker modal -->
-                            <div x-show="showTemplatePicker" x-cloak x-transition
+                            <!-- hx-swap="innerHTML" is explicit because composer-form ancestor sets hx-swap="none" -->
+                            <div x-ref="templatePicker"
+                                 x-show="showTemplatePicker" x-cloak x-transition
                                  @click.outside="showTemplatePicker = false"
                                  class="absolute z-50 top-full mt-1 right-0 bg-white rounded-xl shadow-lg ring-1 ring-stone-200 w-80 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto"
                                  hx-get="{% url 'composer:template_picker' workspace_id=workspace.id %}"
-                                 hx-trigger="intersect once"
-                                 hx-target="this">
+                                 hx-trigger="load-picker, templateSaved from:body, templateChanged from:body"
+                                 hx-target="this"
+                                 hx-swap="innerHTML">
                                 <div class="p-4 text-center text-xs text-stone-400">Loading templates…</div>
                             </div>
                         </div>
