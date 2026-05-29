@@ -37,9 +37,7 @@ class TemplatePickerTests(TestCase):
             workspace_role=WorkspaceMembership.WorkspaceRole.OWNER,
         )
         self.client.force_login(self.user)
-        self.picker_url = reverse(
-            "composer:template_picker", kwargs={"workspace_id": self.workspace.id}
-        )
+        self.picker_url = reverse("composer:template_picker", kwargs={"workspace_id": self.workspace.id})
 
     def test_picker_returns_templates_for_workspace(self):
         PostTemplate.objects.create(
@@ -66,9 +64,7 @@ class TemplatePickerTests(TestCase):
         self.assertNotIn("No templates yet.", body)
 
     def test_picker_excludes_other_workspace_templates(self):
-        other_workspace = Workspace.objects.create(
-            organization=self.org, name="Other Workspace"
-        )
+        other_workspace = Workspace.objects.create(organization=self.org, name="Other Workspace")
         PostTemplate.objects.create(
             workspace=other_workspace,
             name="Secret template",
