@@ -24,6 +24,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import (
     PermissionDenied,
+)
+from django.core.exceptions import (
     ValidationError as DjangoValidationError,
 )
 from django.http import Http404, HttpResponse
@@ -40,7 +42,6 @@ from apps.members.models import (
 )
 from apps.social_accounts.models import SocialAccount
 from apps.workspaces.models import Workspace
-
 
 # ---------------------------------------------------------------------------
 # Authorization decorator
@@ -62,9 +63,7 @@ def _require_manage_api_keys(view_func):
     def _wrapped(request, *args, **kwargs):
         org_membership = getattr(request, "org_membership", None)
         if not has_org_permission(org_membership, "manage_api_keys"):
-            raise PermissionDenied(
-                "You need the manage_api_keys org permission to use this page."
-            )
+            raise PermissionDenied("You need the manage_api_keys org permission to use this page.")
         return view_func(request, *args, **kwargs)
 
     return login_required(_wrapped)
@@ -87,8 +86,7 @@ def list_keys(request):
     """
     org = request.org
     keys = (
-        ApiKey.objects
-        .filter(workspace__organization=org)
+        ApiKey.objects.filter(workspace__organization=org)
         .select_related("workspace", "issued_by")
         .prefetch_related("social_accounts")
         .order_by("-created_at")
@@ -158,9 +156,7 @@ def workspace_options_partial(request):
     if not workspace_id:
         return HttpResponse("")
     try:
-        workspace = Workspace.objects.get(
-            id=workspace_id, organization=request.org
-        )
+        workspace = Workspace.objects.get(id=workspace_id, organization=request.org)
     except (Workspace.DoesNotExist, ValueError, DjangoValidationError):
         # Django's UUIDField raises ``django.core.exceptions.ValidationError``
         # (not ``ValueError``) when the input doesn't parse as a UUID,
@@ -206,9 +202,7 @@ def _grantable_permissions(user, workspace) -> list[tuple[str, str]]:
     label for the modal without us having to maintain a parallel dict.
     """
     try:
-        membership = WorkspaceMembership.objects.select_related("custom_role").get(
-            user=user, workspace=workspace
-        )
+        membership = WorkspaceMembership.objects.select_related("custom_role").get(user=user, workspace=workspace)
     except WorkspaceMembership.DoesNotExist:
         return []
     held = {k for k, v in membership.effective_permissions.items() if v}
@@ -246,9 +240,7 @@ def issue_key(request):
     workspace = None
     if workspace_id and not errors:
         try:
-            workspace = Workspace.objects.get(
-                id=workspace_id, organization=request.org
-            )
+            workspace = Workspace.objects.get(id=workspace_id, organization=request.org)
         except (Workspace.DoesNotExist, ValueError, DjangoValidationError):
             # ``ValidationError`` covers the malformed-UUID path; see the
             # corresponding catch in ``workspace_options_partial`` for
@@ -257,9 +249,7 @@ def issue_key(request):
 
     accounts: list[SocialAccount] = []
     if workspace is not None:
-        accounts = list(
-            SocialAccount.objects.filter(id__in=account_ids, workspace=workspace)
-        )
+        accounts = list(SocialAccount.objects.filter(id__in=account_ids, workspace=workspace))
         if len(accounts) != len(set(account_ids)):
             errors.append("Some selected accounts do not belong to that workspace.")
 
@@ -275,9 +265,7 @@ def issue_key(request):
 
             try:
                 d = datetime.fromisoformat(expires_at_str).date()
-                expires_at = datetime.combine(d, time.max).replace(
-                    tzinfo=timezone.get_current_timezone()
-                )
+                expires_at = datetime.combine(d, time.max).replace(tzinfo=timezone.get_current_timezone())
             except ValueError:
                 errors.append("Could not parse expires_at.")
 
@@ -305,8 +293,7 @@ def issue_key(request):
     # "shown exactly once" contract.
     org = request.org
     keys = (
-        ApiKey.objects
-        .filter(workspace__organization=org)
+        ApiKey.objects.filter(workspace__organization=org)
         .select_related("workspace", "issued_by")
         .prefetch_related("social_accounts")
         .order_by("-created_at")

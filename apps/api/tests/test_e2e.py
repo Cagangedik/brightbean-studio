@@ -31,8 +31,8 @@ from apps.api_keys import services
 from apps.api_keys.models import ApiKeyAuditLog
 from apps.composer.models import PlatformPost, Post
 from apps.members.models import (
-    OrgMembership,
     PERMISSION_KEYS,
+    OrgMembership,
     WorkspaceMembership,
 )
 
@@ -139,9 +139,7 @@ class TestRestToPublisherChain:
     and ``apps.publisher.engine.PublishEngine.poll_and_publish``.
     """
 
-    def test_scheduled_post_is_picked_up_by_publisher(
-        self, client_with_token, social_account
-    ):
+    def test_scheduled_post_is_picked_up_by_publisher(self, client_with_token, social_account):
         # Step 1 — schedule a post in the recent past so the engine's
         # ``effective_at <= now`` filter sees it as due immediately.
         past = (timezone.now() - timedelta(minutes=1)).isoformat()
@@ -191,9 +189,7 @@ class TestRestToPublisherChain:
             engine._publish_platform_post(pp)
 
         pp.refresh_from_db()
-        assert pp.status == "published", (
-            f"expected published, got {pp.status!r}"
-        )
+        assert pp.status == "published", f"expected published, got {pp.status!r}"
         assert pp.platform_post_id == "abc123"
 
 
@@ -224,12 +220,10 @@ class TestIdempotencySweepTask:
         )
         # ``auto_now_add`` fixed ``created_at`` at NOW; rewrite it past
         # the 25-hour mark to simulate a row issued yesterday.
-        IdempotencyRecord.objects.filter(pk=old.pk).update(
-            created_at=_tz.now() - dt.timedelta(hours=25)
-        )
+        IdempotencyRecord.objects.filter(pk=old.pk).update(created_at=_tz.now() - dt.timedelta(hours=25))
 
         # Fresh row — must survive.
-        fresh = IdempotencyRecord.objects.create(
+        IdempotencyRecord.objects.create(
             api_key=issued_key.api_key,
             key="fresh",
             request_fingerprint="y",
@@ -247,15 +241,14 @@ class TestIdempotencySweepTask:
             response_status=PENDING_STATUS_SENTINEL,
             response_body={},
         )
-        IdempotencyRecord.objects.filter(pk=stuck.pk).update(
-            created_at=_tz.now() - dt.timedelta(hours=48)
-        )
+        IdempotencyRecord.objects.filter(pk=stuck.pk).update(created_at=_tz.now() - dt.timedelta(hours=48))
 
         # ``@background``-decorated functions still expose their original
         # callable via ``.task_function``; we call that to bypass the
         # task queue and run the sweep synchronously in the test.
         actual = getattr(
-            sweep_stale_idempotency_records, "task_function",
+            sweep_stale_idempotency_records,
+            "task_function",
             sweep_stale_idempotency_records,
         )
         actual()
@@ -280,16 +273,12 @@ class TestRateLimitResponseHeaders:
     body or the header set.
     """
 
-    def test_platform_quota_429_has_retry_after_and_tier(
-        self, client_with_token, social_account
-    ):
+    def test_platform_quota_429_has_retry_after_and_tier(self, client_with_token, social_account):
         # Fill the LinkedIn 100-post/day bucket with scheduled rows so
         # the next ``check_platform_quota`` immediately 429s.
         for _ in range(100):
             PlatformPost.objects.create(
-                post=Post.objects.create(
-                    workspace=social_account.workspace, caption="x"
-                ),
+                post=Post.objects.create(workspace=social_account.workspace, caption="x"),
                 social_account=social_account,
                 status="scheduled",
                 scheduled_at=timezone.now() + timedelta(hours=1),
@@ -328,9 +317,7 @@ class TestRateLimitResponseHeaders:
 
 @pytest.fixture
 def draft_post(db, social_account, user, workspace):
-    p = Post.objects.create(
-        workspace=workspace, author=user, caption="initial", title="initial"
-    )
+    p = Post.objects.create(workspace=workspace, author=user, caption="initial", title="initial")
     PlatformPost.objects.create(post=p, social_account=social_account, status="draft")
     return p
 
@@ -389,9 +376,7 @@ class TestAuditLabelCoverage:
     rename in routers.py can't silently break a SIEM query.
     """
 
-    def test_create_schedule_logs_post_create_schedule(
-        self, client_with_token, social_account
-    ):
+    def test_create_schedule_logs_post_create_schedule(self, client_with_token, social_account):
         when = (timezone.now() + timedelta(hours=1)).isoformat()
         client_with_token.post(
             "/api/v1/posts/",
@@ -407,9 +392,7 @@ class TestAuditLabelCoverage:
         )
         assert ApiKeyAuditLog.objects.filter(action="post.create.schedule").exists()
 
-    def test_create_draft_logs_post_create_draft(
-        self, client_with_token, social_account
-    ):
+    def test_create_draft_logs_post_create_draft(self, client_with_token, social_account):
         client_with_token.post(
             "/api/v1/posts/",
             data=json.dumps(
@@ -439,9 +422,7 @@ class TestMcpToPublisherChain:
     the MCP transport, proving the two surfaces share the publisher path.
     """
 
-    def test_mcp_schedule_post_lands_in_scheduled(
-        self, client_with_token, social_account
-    ):
+    def test_mcp_schedule_post_lands_in_scheduled(self, client_with_token, social_account):
         past = (timezone.now() - timedelta(minutes=1)).isoformat()
         r = client_with_token.post(
             "/api/v1/mcp/",

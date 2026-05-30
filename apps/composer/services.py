@@ -31,11 +31,7 @@ def sync_post_scheduled_at(post):
       kept appearing as scheduled in the UI.
     * No children, parent already null → no-op.
     """
-    times = list(
-        post.platform_posts.exclude(scheduled_at__isnull=True).values_list(
-            "scheduled_at", flat=True
-        )
-    )
+    times = list(post.platform_posts.exclude(scheduled_at__isnull=True).values_list("scheduled_at", flat=True))
     if not times:
         if post.scheduled_at is not None:
             post.scheduled_at = None
@@ -107,9 +103,7 @@ def create_post(
     if status == "scheduled" and scheduled_at is None:
         raise ValueError("status='scheduled' requires scheduled_at.")
     if social_account.workspace_id != workspace.id:
-        raise ValueError(
-            f"SocialAccount {social_account.id} is not in workspace {workspace.id}."
-        )
+        raise ValueError(f"SocialAccount {social_account.id} is not in workspace {workspace.id}.")
 
     # Refuse to queue work against a connection the platform itself has
     # rejected. ``failed`` rows still count against the platform quota
@@ -136,8 +130,7 @@ def create_post(
     }
     if (
         status == "scheduled"
-        and getattr(workspace, "approval_workflow_mode", "none")
-        in _approval_modes_blocking_direct_schedule
+        and getattr(workspace, "approval_workflow_mode", "none") in _approval_modes_blocking_direct_schedule
     ):
         raise ValueError(
             "Workspace requires approval before scheduling; create the post as a "
@@ -149,16 +142,11 @@ def create_post(
     # closed if any ID is missing or belongs to a different workspace.
     asset_map: dict[Any, MediaAsset] = {}
     if media_ids:
-        found = list(
-            MediaAsset.objects
-            .filter(id__in=media_ids, workspace=workspace)
-        )
+        found = list(MediaAsset.objects.filter(id__in=media_ids, workspace=workspace))
         asset_map = {a.id: a for a in found}
         missing = [mid for mid in media_ids if mid not in asset_map]
         if missing:
-            raise ValueError(
-                f"Media asset(s) not found in workspace {workspace.id}: {missing}"
-            )
+            raise ValueError(f"Media asset(s) not found in workspace {workspace.id}: {missing}")
 
     with transaction.atomic():
         post = Post.objects.create(

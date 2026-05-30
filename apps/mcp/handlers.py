@@ -22,12 +22,11 @@ from uuid import UUID
 from ninja.errors import HttpError
 
 from apps.api.limits import check_platform_quota
-from apps.composer.models import PlatformPost, Post
+from apps.composer.models import Post
 from apps.composer.services import create_post, transition_platform_post
 from apps.mcp.protocol import INVALID_PARAMS, JsonRpcError
 from apps.mcp.tools import Tool, register_tool
 from apps.social_accounts.models import SocialAccount
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -71,9 +70,7 @@ def _resolve_allowed_account(api_key, social_account_id_str: str) -> SocialAccou
     sa_id = _parse_uuid(social_account_id_str, "social_account_id")
     allowed = {sa.id for sa in api_key.social_accounts.all()}
     if sa_id not in allowed:
-        raise JsonRpcError(
-            INVALID_PARAMS, "social_account_id is not in this API key's allowlist"
-        )
+        raise JsonRpcError(INVALID_PARAMS, "social_account_id is not in this API key's allowlist")
     return SocialAccount.objects.get(id=sa_id)
 
 
@@ -111,9 +108,8 @@ def _get_post_for_key(api_key, post_id_str: str) -> Post:
     """
     post_id = _parse_uuid(post_id_str, "post_id")
     try:
-        post = (
-            Post.objects.prefetch_related("platform_posts__social_account")
-            .get(id=post_id, workspace_id=api_key.workspace_id)
+        post = Post.objects.prefetch_related("platform_posts__social_account").get(
+            id=post_id, workspace_id=api_key.workspace_id
         )
     except Post.DoesNotExist as exc:
         raise JsonRpcError(INVALID_PARAMS, "Post not found") from exc

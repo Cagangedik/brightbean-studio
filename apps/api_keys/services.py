@@ -168,16 +168,12 @@ def issue_api_key(
         raise ValueError("An API key must allowlist at least one connected account.")
     for sa in sa_list:
         if sa.workspace_id != workspace.id:
-            raise ValueError(
-                f"SocialAccount {sa.id} does not belong to workspace {workspace.id}."
-            )
+            raise ValueError(f"SocialAccount {sa.id} does not belong to workspace {workspace.id}.")
 
     # Org-level manage_api_keys gate — must be checked before any
     # workspace-permission logic so a non-admin who happens to have rich
     # workspace perms still can't mint a key.
-    org_membership = OrgMembership.objects.filter(
-        user=issued_by, organization_id=workspace.organization_id
-    ).first()
+    org_membership = OrgMembership.objects.filter(user=issued_by, organization_id=workspace.organization_id).first()
     if not has_org_permission(org_membership, "manage_api_keys"):
         raise ValueError(
             f"User {issued_by} lacks the org-level 'manage_api_keys' permission "
@@ -190,16 +186,13 @@ def issue_api_key(
         granter_perms = {k for k, v in membership.effective_permissions.items() if v}
     except WorkspaceMembership.DoesNotExist as exc:
         raise ValueError(
-            f"User {issued_by} has no membership in workspace {workspace}; "
-            f"cannot issue an API key on their behalf."
+            f"User {issued_by} has no membership in workspace {workspace}; cannot issue an API key on their behalf."
         ) from exc
 
     requested = set(permissions or [])
     ungrantable = requested - granter_perms
     if ungrantable:
-        raise ValueError(
-            f"Issuer cannot grant permissions they don't hold: {sorted(ungrantable)}"
-        )
+        raise ValueError(f"Issuer cannot grant permissions they don't hold: {sorted(ungrantable)}")
 
     random_part = secrets.token_urlsafe(32)
     lookup = _make_lookup(random_part)
@@ -282,8 +275,7 @@ def verify_token(raw: str) -> ApiKey | None:
     if api_key is None:
         try:
             api_key = (
-                ApiKey.objects
-                .select_related("workspace", "issued_by")
+                ApiKey.objects.select_related("workspace", "issued_by")
                 .prefetch_related("social_accounts")
                 .get(lookup_prefix=parsed.lookup_prefix)
             )

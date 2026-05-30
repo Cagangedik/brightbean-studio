@@ -10,7 +10,6 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import timedelta
 
 import pytest
 from django.test import Client
@@ -19,8 +18,8 @@ from django.utils import timezone
 from apps.api_keys import services
 from apps.api_keys.models import ApiKeyAuditLog
 from apps.members.models import (
-    OrgMembership,
     PERMISSION_KEYS,
+    OrgMembership,
     WorkspaceMembership,
 )
 
@@ -78,9 +77,7 @@ def workspace(db, organization):
 
 @pytest.fixture
 def owner_memberships(db, user, organization, workspace):
-    OrgMembership.objects.create(
-        user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER
-    )
+    OrgMembership.objects.create(user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER)
     return WorkspaceMembership.objects.create(
         user=user,
         workspace=workspace,
@@ -124,9 +121,7 @@ def client_with_token(issued_key):
 
 @pytest.mark.django_db
 class TestInputSchemaEnforcement:
-    def test_caption_dict_instead_of_string_returns_invalid_params(
-        self, client_with_token, social_account
-    ):
+    def test_caption_dict_instead_of_string_returns_invalid_params(self, client_with_token, social_account):
         """Previously this reached the handler with a dict caption that
         Django's TextField stringified to its repr — silent data
         corruption. Now jsonschema validation rejects at the boundary.
@@ -158,9 +153,7 @@ class TestInputSchemaEnforcement:
         )
         assert r.json()["error"]["code"] == -32602
 
-    def test_unknown_field_rejected_by_additional_properties_false(
-        self, client_with_token, social_account
-    ):
+    def test_unknown_field_rejected_by_additional_properties_false(self, client_with_token, social_account):
         r = client_with_token.post(
             MCP_URL,
             data=json.dumps(
@@ -212,9 +205,7 @@ class TestMcpAuditStatusDerivation:
         assert r.status_code == 200
         assert r.json()["error"]["code"] == -32602
         # Audit row reflects the JSON-RPC error.
-        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest(
-            "created_at"
-        )
+        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest("created_at")
         assert latest.status_code == 422  # INVALID_PARAMS maps to 422
 
     def test_unknown_method_logs_404(self, client_with_token, issued_key):
@@ -224,23 +215,17 @@ class TestMcpAuditStatusDerivation:
             content_type="application/json",
         )
         assert r.json()["error"]["code"] == -32601
-        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest(
-            "created_at"
-        )
+        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest("created_at")
         assert latest.status_code == 404  # METHOD_NOT_FOUND maps to 404
 
     def test_notification_logs_202(self, client_with_token, issued_key):
         r = client_with_token.post(
             MCP_URL,
-            data=json.dumps(
-                {"jsonrpc": "2.0", "method": "notifications/initialized"}
-            ),  # no id → notification
+            data=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),  # no id → notification
             content_type="application/json",
         )
         assert r.status_code == 202
-        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest(
-            "created_at"
-        )
+        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest("created_at")
         assert latest.status_code == 202
 
 

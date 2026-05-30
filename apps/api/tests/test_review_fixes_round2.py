@@ -11,7 +11,6 @@ from datetime import timedelta
 
 import pytest
 from django.test import Client
-from django.test import RequestFactory
 from django.utils import timezone
 
 from apps.api.limits import (
@@ -22,8 +21,8 @@ from apps.api.limits import (
 from apps.api_keys import services
 from apps.composer.models import PlatformPost, Post
 from apps.members.models import (
-    OrgMembership,
     PERMISSION_KEYS,
+    OrgMembership,
     WorkspaceMembership,
 )
 
@@ -109,9 +108,7 @@ def write_only_membership(db, organization, workspace):
         name="R2 Editor",
         tos_accepted_at=timezone.now(),
     )
-    OrgMembership.objects.create(
-        user=u, organization=organization, org_role=OrgMembership.OrgRole.ADMIN
-    )
+    OrgMembership.objects.create(user=u, organization=organization, org_role=OrgMembership.OrgRole.ADMIN)
     return WorkspaceMembership.objects.create(
         user=u,
         workspace=workspace,
@@ -138,9 +135,7 @@ def write_only_client(write_only_key):
 
 @pytest.mark.django_db
 class TestScheduleRequiresPublishDirectly:
-    def test_create_action_schedule_rejected_without_publish_directly(
-        self, write_only_client, social_account
-    ):
+    def test_create_action_schedule_rejected_without_publish_directly(self, write_only_client, social_account):
         when = (timezone.now() + timedelta(hours=1)).isoformat()
         r = write_only_client.post(
             "/api/v1/posts/",
@@ -159,9 +154,7 @@ class TestScheduleRequiresPublishDirectly:
         # And nothing was created.
         assert Post.objects.count() == 0
 
-    def test_create_action_draft_still_allowed_without_publish_directly(
-        self, write_only_client, social_account
-    ):
+    def test_create_action_draft_still_allowed_without_publish_directly(self, write_only_client, social_account):
         """The gate must only fire on schedule — draft creation is the
         whole point of a ``create_posts``-only key.
         """
@@ -184,9 +177,7 @@ class TestScheduleRequiresPublishDirectly:
         # Pre-create a draft via the service (bypasses HTTP perm checks
         # so we can isolate the schedule route's check).
         post = Post.objects.create(workspace=workspace, caption="x")
-        PlatformPost.objects.create(
-            post=post, social_account=social_account, status="draft"
-        )
+        PlatformPost.objects.create(post=post, social_account=social_account, status="draft")
         when = (timezone.now() + timedelta(hours=1)).isoformat()
         r = write_only_client.post(
             f"/api/v1/posts/{post.id}/schedule",
@@ -228,11 +219,15 @@ class TestCancelClearsParentSchedule:
         calendars and dashboards then showed a draft as scheduled.
         """
         post = Post.objects.create(
-            workspace=workspace, author=user, caption="cancel me",
+            workspace=workspace,
+            author=user,
+            caption="cancel me",
             scheduled_at=timezone.now() + timedelta(hours=1),
         )
         PlatformPost.objects.create(
-            post=post, social_account=social_account, status="scheduled",
+            post=post,
+            social_account=social_account,
+            status="scheduled",
             scheduled_at=timezone.now() + timedelta(hours=1),
         )
 
@@ -253,9 +248,7 @@ class TestCancelClearsParentSchedule:
 
 @pytest.mark.django_db
 class TestQuotaCountsRecentTransitions:
-    def test_old_draft_freshly_scheduled_counts_against_quota(
-        self, social_account, workspace
-    ):
+    def test_old_draft_freshly_scheduled_counts_against_quota(self, social_account, workspace):
         """Codex P3 regression: an agent could create 100 LinkedIn drafts
         on day 1, wait > 24h, then schedule them all — the quota check
         used to look at ``created_at`` (> 24h ago, outside window) and
@@ -263,18 +256,12 @@ class TestQuotaCountsRecentTransitions:
         """
         # Simulate a draft created 25h ago.
         old_post = Post.objects.create(workspace=workspace, caption="old")
-        pp = PlatformPost.objects.create(
-            post=old_post, social_account=social_account, status="draft"
-        )
+        pp = PlatformPost.objects.create(post=old_post, social_account=social_account, status="draft")
         old_time = timezone.now() - timedelta(hours=25)
-        PlatformPost.objects.filter(pk=pp.pk).update(
-            created_at=old_time, updated_at=old_time
-        )
+        PlatformPost.objects.filter(pk=pp.pk).update(created_at=old_time, updated_at=old_time)
         # Now flip to scheduled today (mirrors what the schedule route
         # would do via ``transition_platform_post``).
-        PlatformPost.objects.filter(pk=pp.pk).update(
-            status="scheduled", updated_at=timezone.now()
-        )
+        PlatformPost.objects.filter(pk=pp.pk).update(status="scheduled", updated_at=timezone.now())
 
         # The single newly-scheduled row must be counted.
         assert count_recent_creations(social_account) == 1
@@ -307,8 +294,7 @@ class TestPlatformLimitKeysMatchChoices:
         real_choices = set(PlatformCredential.Platform.values)
         for key in PLATFORM_DAILY_POST_LIMIT:
             assert key in real_choices, (
-                f"{key!r} is not in PlatformCredential.Platform.values "
-                f"— either rename it or add the choice"
+                f"{key!r} is not in PlatformCredential.Platform.values — either rename it or add the choice"
             )
 
 
@@ -319,9 +305,7 @@ class TestPlatformLimitKeysMatchChoices:
 
 @pytest.mark.django_db
 class TestMcpBatchRateLimit:
-    def test_batch_of_two_charges_exactly_two_tokens(
-        self, owner_client, owner_key, monkeypatch
-    ):
+    def test_batch_of_two_charges_exactly_two_tokens(self, owner_client, owner_key, monkeypatch):
         """Codex P5 regression: the top-of-endpoint
         ``enforce_http_rate_limits`` and the per-message loop both ran,
         so a batch of N messages cost N+1 tokens. After the fix the cost
@@ -350,13 +334,9 @@ class TestMcpBatchRateLimit:
             ),
             content_type="application/json",
         )
-        assert calls["n"] == 2, (
-            f"expected 1 charge per message (2 total), got {calls['n']}"
-        )
+        assert calls["n"] == 2, f"expected 1 charge per message (2 total), got {calls['n']}"
 
-    def test_single_message_charges_exactly_one_token(
-        self, owner_client, monkeypatch
-    ):
+    def test_single_message_charges_exactly_one_token(self, owner_client, monkeypatch):
         from apps.api import limits as _limits
 
         calls = {"n": 0}

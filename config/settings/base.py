@@ -149,11 +149,7 @@ AUTH_USER_MODEL = "accounts.User"
 # trusted proxy in front. Set ``BB_TRUSTED_PROXIES`` in the environment
 # (comma-separated) when you run the app behind Cloudflare, an ALB,
 # nginx, etc.
-BB_TRUSTED_PROXIES = tuple(
-    p.strip()
-    for p in env.list("BB_TRUSTED_PROXIES", default=[])
-    if p.strip()
-)
+BB_TRUSTED_PROXIES = tuple(p.strip() for p in env.list("BB_TRUSTED_PROXIES", default=[]) if p.strip())
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

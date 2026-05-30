@@ -39,9 +39,7 @@ class ApiConfig(AppConfig):
                     repeat=SWEEP_INTERVAL_SECONDS,
                     verbose_name="sweep_idempotency",
                 )
-                logger.info(
-                    "Registered idempotency sweep (every %ds)", SWEEP_INTERVAL_SECONDS
-                )
+                logger.info("Registered idempotency sweep (every %ds)", SWEEP_INTERVAL_SECONDS)
         except Exception:
             # ``post_migrate`` fires before the background-task tables
             # might exist on a fresh DB; skip quietly so first-run setup

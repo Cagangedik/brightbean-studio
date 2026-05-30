@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import uuid
 
-from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -41,7 +40,7 @@ from apps.api.schemas import (
     ScheduleRequest,
     UpdatePostRequest,
 )
-from apps.composer.models import PlatformPost, Post
+from apps.composer.models import Post
 from apps.composer.services import (
     create_post,
     sync_post_scheduled_at,
@@ -76,7 +75,7 @@ def _resolve_account(request: HttpRequest, social_account_id: uuid.UUID) -> Soci
     valid, the caller may only act on accounts the issuer explicitly
     listed at issuance time.
     """
-    api_key = request.api_key
+    api_key = request.api_key  # type: ignore[attr-defined]  # set by ApiKeyAuth
     allowlist_ids = {sa.id for sa in api_key.social_accounts.all()}
     if social_account_id not in allowlist_ids:
         raise HttpError(403, "SocialAccount is not in this key's allowlist.")
@@ -134,9 +133,9 @@ def _get_workspace_post(request: HttpRequest, post_id: uuid.UUID) -> Post:
     post = get_object_or_404(
         Post.objects.prefetch_related("platform_posts__social_account"),
         id=post_id,
-        workspace_id=request.api_key.workspace_id,
+        workspace_id=request.api_key.workspace_id,  # type: ignore[attr-defined]
     )
-    allowed_ids = {sa.id for sa in request.api_key.social_accounts.all()}
+    allowed_ids = {sa.id for sa in request.api_key.social_accounts.all()}  # type: ignore[attr-defined]
     pp_account_ids = {pp.social_account_id for pp in post.platform_posts.all()}
     # No platform_posts → nothing this key could legitimately act on.
     # Foreign child → leaking even via a read would be a confused-deputy.
@@ -180,9 +179,7 @@ def create(request, payload: CreatePostRequest):
     #   in_flight  — a concurrent peer holds the slot, return 409
     #   passthrough/claimed — caller proceeds; only the "claimed" path
     #                         must finalize or release before returning.
-    fingerprint = fingerprint_request(
-        request.method or "POST", request.path, payload.dict(by_alias=True)
-    )
+    fingerprint = fingerprint_request(request.method or "POST", request.path, payload.dict(by_alias=True))
     try:
         disposition, replay_status, replay_body = claim_idempotency_slot(
             api_key=request.api_key,
@@ -208,9 +205,7 @@ def create(request, payload: CreatePostRequest):
         try:
             check_platform_quota(social_account)
         except HttpError:
-            release_idempotent_claim(
-                api_key=request.api_key, idempotency_key=payload.idempotency_key
-            )
+            release_idempotent_claim(api_key=request.api_key, idempotency_key=payload.idempotency_key)
             raise
 
     # Single try/except covers every step from create_post through
@@ -254,14 +249,10 @@ def create(request, payload: CreatePostRequest):
             body=body.model_dump(mode="json"),
         )
     except ValueError as exc:
-        release_idempotent_claim(
-            api_key=request.api_key, idempotency_key=payload.idempotency_key
-        )
+        release_idempotent_claim(api_key=request.api_key, idempotency_key=payload.idempotency_key)
         raise HttpError(422, str(exc)) from exc
     except Exception:
-        release_idempotent_claim(
-            api_key=request.api_key, idempotency_key=payload.idempotency_key
-        )
+        release_idempotent_claim(api_key=request.api_key, idempotency_key=payload.idempotency_key)
         raise
     return status_code, body
 
@@ -306,12 +297,7 @@ def update(request, post_id: uuid.UUID, payload: UpdatePostRequest):
     resolved_assets: dict = {}
     if payload.media_asset_ids is not None:
         wanted_media = list(payload.media_asset_ids)
-        resolved_assets = {
-            a.id: a
-            for a in MediaAsset.objects.filter(
-                id__in=wanted_media, workspace=post.workspace
-            )
-        }
+        resolved_assets = {a.id: a for a in MediaAsset.objects.filter(id__in=wanted_media, workspace=post.workspace)}
         missing = [i for i in wanted_media if i not in resolved_assets]
         if missing:
             raise HttpError(422, f"Media asset(s) not in workspace: {missing}")
@@ -336,9 +322,7 @@ def update(request, post_id: uuid.UUID, payload: UpdatePostRequest):
             from django.utils import timezone as _tz
 
             scheduled_children = post.platform_posts.filter(status="scheduled")
-            scheduled_children.update(
-                scheduled_at=payload.scheduled_at, updated_at=_tz.now()
-            )
+            scheduled_children.update(scheduled_at=payload.scheduled_at, updated_at=_tz.now())
             post.scheduled_at = payload.scheduled_at
             update_fields.append("scheduled_at")
         if payload.media_asset_ids is not None:
@@ -398,9 +382,7 @@ def schedule(request, post_id: uuid.UUID, payload: ScheduleRequest):
     with transaction.atomic():
         for pp in drafts:
             try:
-                transition_platform_post(
-                    pp, "scheduled", scheduled_at=payload.scheduled_at
-                )
+                transition_platform_post(pp, "scheduled", scheduled_at=payload.scheduled_at)
             except ValueError as exc:
                 raise HttpError(422, str(exc)) from exc
 

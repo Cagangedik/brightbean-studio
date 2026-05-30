@@ -21,7 +21,8 @@ JSON-RPC core keeps dependencies and abstractions to a minimum.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 #: Wire protocol revision we implement. The official MCP versions are
 #: date-stamped; the 2025-03-26 revision is what most current clients
@@ -95,7 +96,11 @@ def is_notification(msg: dict) -> bool:
 def dispatch(
     msg: Any,
     context: Any,
-    methods: dict[str, Callable[[dict, Any], Any]],
+    # Using ``Mapping`` (covariant in the value type) rather than ``dict``
+    # so callers can pass narrower handler signatures than ``(dict, Any) -> Any``
+    # without mypy invariance errors. Every concrete handler returns either
+    # ``dict`` or ``None`` and only reads from ``context``.
+    methods: Mapping[str, Callable[[dict, Any], Any]],
 ) -> dict | None:
     """Route one JSON-RPC message to its handler.
 
@@ -118,15 +123,16 @@ def dispatch(
     if not isinstance(params, dict):
         return make_error(msg.get("id"), INVALID_PARAMS, "'params' must be an object")
 
+    import contextlib
+
     handler = methods.get(method)
     if is_notification(msg):
-        # No reply allowed regardless of outcome — fire-and-forget.
+        # No reply allowed regardless of outcome — fire-and-forget. No
+        # channel exists to surface a notification-handler failure on,
+        # so any exception is intentionally suppressed.
         if handler is not None:
-            try:
+            with contextlib.suppress(Exception):
                 handler(params, context)
-            except Exception:
-                # No channel to surface this on; swallow.
-                pass
         return None
 
     if handler is None:

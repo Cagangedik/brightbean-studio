@@ -15,13 +15,12 @@ from django.utils import timezone
 
 from apps.api.limits import resolve_platform_limit
 from apps.api.middleware import _client_ip
-from apps.api.models import IdempotencyRecord
 from apps.api_keys import services
-from apps.api_keys.models import ApiKey, ApiKeyAuditLog
+from apps.api_keys.models import ApiKeyAuditLog
 from apps.composer.models import PlatformPost, Post
 from apps.members.models import (
-    OrgMembership,
     PERMISSION_KEYS,
+    OrgMembership,
     WorkspaceMembership,
 )
 
@@ -65,9 +64,7 @@ def workspace(db, organization):
 
 @pytest.fixture
 def owner_memberships(db, user, organization, workspace):
-    OrgMembership.objects.create(
-        user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER
-    )
+    OrgMembership.objects.create(user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER)
     return WorkspaceMembership.objects.create(
         user=user,
         workspace=workspace,
@@ -179,8 +176,7 @@ class TestApiKeyCacheInvalidation:
         r = client_with_token.get("/api/v1/me/")
         ids = {a["id"] for a in r.json()["allowlisted_accounts"]}
         assert str(second_account.id) in ids, (
-            "post-edit request still saw the pre-edit allowlist — the "
-            "m2m_changed signal didn't bust the cache"
+            "post-edit request still saw the pre-edit allowlist — the m2m_changed signal didn't bust the cache"
         )
 
         # Now remove the original account — same invariant.
@@ -208,9 +204,7 @@ class TestTrustedProxyClientIp:
         from django.test import RequestFactory
 
         settings.BB_TRUSTED_PROXIES = ()  # no trusted proxies
-        req = RequestFactory().get(
-            "/", HTTP_X_FORWARDED_FOR="8.8.8.8", REMOTE_ADDR="1.2.3.4"
-        )
+        req = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="8.8.8.8", REMOTE_ADDR="1.2.3.4")
         # XFF must NOT be honoured — REMOTE_ADDR is the only thing the
         # socket layer attests, so that's what we record / throttle on.
         assert _client_ip(req) == "1.2.3.4"
@@ -219,9 +213,7 @@ class TestTrustedProxyClientIp:
         from django.test import RequestFactory
 
         settings.BB_TRUSTED_PROXIES = ("10.0.0.1",)
-        req = RequestFactory().get(
-            "/", HTTP_X_FORWARDED_FOR="8.8.8.8, 10.0.0.1", REMOTE_ADDR="10.0.0.1"
-        )
+        req = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="8.8.8.8, 10.0.0.1", REMOTE_ADDR="10.0.0.1")
         # The proxy is trusted, so XFF is honoured; the leftmost
         # untrusted hop is the originating client.
         assert _client_ip(req) == "8.8.8.8"
@@ -234,9 +226,7 @@ class TestTrustedProxyClientIp:
 
 @pytest.mark.django_db
 class TestConnectionStatusGate:
-    def test_disconnected_account_rejected_by_create_post(
-        self, workspace, owner_memberships, social_account
-    ):
+    def test_disconnected_account_rejected_by_create_post(self, workspace, owner_memberships, social_account):
         from apps.composer.services import create_post
         from apps.social_accounts.models import SocialAccount
 
@@ -250,9 +240,7 @@ class TestConnectionStatusGate:
                 status="draft",
             )
 
-    def test_error_status_account_rejected_by_create_post(
-        self, workspace, owner_memberships, social_account
-    ):
+    def test_error_status_account_rejected_by_create_post(self, workspace, owner_memberships, social_account):
         from apps.composer.services import create_post
         from apps.social_accounts.models import SocialAccount
 
@@ -274,9 +262,7 @@ class TestConnectionStatusGate:
 
 @pytest.mark.django_db
 class TestApprovalWorkflowGate:
-    def test_required_internal_blocks_direct_schedule(
-        self, workspace, owner_memberships, social_account
-    ):
+    def test_required_internal_blocks_direct_schedule(self, workspace, owner_memberships, social_account):
         from apps.composer.services import create_post
 
         workspace.approval_workflow_mode = "required_internal"
@@ -290,9 +276,7 @@ class TestApprovalWorkflowGate:
                 status="scheduled",
             )
 
-    def test_required_internal_allows_draft(
-        self, workspace, owner_memberships, social_account
-    ):
+    def test_required_internal_allows_draft(self, workspace, owner_memberships, social_account):
         from apps.composer.services import create_post
 
         workspace.approval_workflow_mode = "required_internal"
@@ -305,9 +289,7 @@ class TestApprovalWorkflowGate:
         )
         assert post.pk is not None
 
-    def test_none_workflow_allows_direct_schedule(
-        self, workspace, owner_memberships, social_account
-    ):
+    def test_none_workflow_allows_direct_schedule(self, workspace, owner_memberships, social_account):
         from apps.composer.services import create_post
 
         workspace.approval_workflow_mode = "none"
@@ -342,9 +324,7 @@ def scheduled_post(db, social_account, user, workspace):
 
 @pytest.mark.django_db
 class TestPatchAtomicity:
-    def test_422_on_foreign_media_does_not_commit_scheduled_at_change(
-        self, client_with_token, scheduled_post
-    ):
+    def test_422_on_foreign_media_does_not_commit_scheduled_at_change(self, client_with_token, scheduled_post):
         """Codex regression: scheduled_children.update() ran BEFORE media
         validation, so a 422 from a foreign media UUID committed the new
         schedule timestamp anyway. The fix validates first, then mutates
@@ -391,9 +371,7 @@ def two_draft_children(db, social_account, second_account, user, workspace, issu
 
 @pytest.mark.django_db
 class TestScheduleAtomic:
-    def test_partial_failure_rolls_back_first_child(
-        self, client_with_token, two_draft_children, monkeypatch
-    ):
+    def test_partial_failure_rolls_back_first_child(self, client_with_token, two_draft_children, monkeypatch):
         """Force the second child's transition_to to raise. The first
         child must NOT remain scheduled — the route's transaction.atomic
         should roll the whole loop back.
@@ -409,9 +387,7 @@ class TestScheduleAtomic:
                 raise ValueError("simulated second-child failure")
             return original(pp, target_status, **kw)
 
-        monkeypatch.setattr(
-            "apps.api.routers.posts.transition_platform_post", flaky_transition
-        )
+        monkeypatch.setattr("apps.api.routers.posts.transition_platform_post", flaky_transition)
 
         when = (timezone.now() + timedelta(hours=1)).isoformat()
         r = client_with_token.post(
@@ -421,12 +397,8 @@ class TestScheduleAtomic:
         )
         assert r.status_code == 422
         # All children must still be draft — no partial commit.
-        statuses = list(
-            two_draft_children.platform_posts.values_list("status", flat=True)
-        )
-        assert all(s == "draft" for s in statuses), (
-            f"expected all drafts after rollback, got {statuses}"
-        )
+        statuses = list(two_draft_children.platform_posts.values_list("status", flat=True))
+        assert all(s == "draft" for s in statuses), f"expected all drafts after rollback, got {statuses}"
 
 
 # ===========================================================================
@@ -443,16 +415,12 @@ class TestAuditLogOnFailures:
         """
         import uuid as _uuid
 
-        before = ApiKeyAuditLog.objects.filter(
-            api_key=issued_key.api_key
-        ).count()
+        before = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).count()
         r = client_with_token.get(f"/api/v1/posts/{_uuid.uuid4()}")
         assert r.status_code == 404
         after = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).count()
         assert after == before + 1
-        latest = ApiKeyAuditLog.objects.filter(
-            api_key=issued_key.api_key
-        ).latest("created_at")
+        latest = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key).latest("created_at")
         assert latest.status_code == 404
         assert "post.read" in latest.action
 
@@ -462,9 +430,7 @@ class TestAuditLogOnFailures:
         """
         import uuid as _uuid
 
-        before = ApiKeyAuditLog.objects.filter(
-            api_key=issued_key.api_key, status_code=403
-        ).count()
+        before = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key, status_code=403).count()
         r = client_with_token.post(
             "/api/v1/posts/",
             data=json.dumps(
@@ -477,7 +443,5 @@ class TestAuditLogOnFailures:
             content_type="application/json",
         )
         assert r.status_code == 403
-        after = ApiKeyAuditLog.objects.filter(
-            api_key=issued_key.api_key, status_code=403
-        ).count()
+        after = ApiKeyAuditLog.objects.filter(api_key=issued_key.api_key, status_code=403).count()
         assert after == before + 1

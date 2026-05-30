@@ -26,8 +26,7 @@ from django.utils import timezone
 
 from apps.api_keys import services
 from apps.composer.models import PlatformPost, Post
-from apps.members.models import OrgMembership, PERMISSION_KEYS, WorkspaceMembership
-
+from apps.members.models import PERMISSION_KEYS, OrgMembership, WorkspaceMembership
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -62,9 +61,7 @@ def workspace(db, organization):
 
 @pytest.fixture
 def owner_memberships(db, user, organization, workspace):
-    OrgMembership.objects.create(
-        user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER
-    )
+    OrgMembership.objects.create(user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER)
     return WorkspaceMembership.objects.create(
         user=user,
         workspace=workspace,
@@ -189,11 +186,13 @@ class TestCreatePost:
     def test_create_draft(self, client_with_token, social_account):
         r = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(social_account.id),
-                "caption": "Hello from agents.",
-                "action": "draft",
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(social_account.id),
+                    "caption": "Hello from agents.",
+                    "action": "draft",
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 201, r.content
@@ -208,11 +207,13 @@ class TestCreatePost:
     def test_create_scheduled_requires_scheduled_at(self, client_with_token, social_account):
         r = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(social_account.id),
-                "caption": "Will fail.",
-                "action": "schedule",
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(social_account.id),
+                    "caption": "Will fail.",
+                    "action": "schedule",
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 422
@@ -221,12 +222,14 @@ class TestCreatePost:
         when = (timezone.now() + timedelta(hours=2)).isoformat()
         r = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(social_account.id),
-                "caption": "See you in 2h.",
-                "action": "schedule",
-                "scheduled_at": when,
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(social_account.id),
+                    "caption": "See you in 2h.",
+                    "action": "schedule",
+                    "scheduled_at": when,
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 201, r.content
@@ -236,11 +239,13 @@ class TestCreatePost:
     def test_account_outside_allowlist_is_403(self, client_with_token, foreign_account):
         r = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(foreign_account.id),
-                "caption": "should not be allowed",
-                "action": "draft",
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(foreign_account.id),
+                    "caption": "should not be allowed",
+                    "action": "draft",
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 403
@@ -261,13 +266,9 @@ class TestIdempotency:
             "action": "draft",
             "idempotency_key": "abc-123",
         }
-        r1 = client_with_token.post(
-            "/api/v1/posts/", data=json.dumps(body), content_type="application/json"
-        )
+        r1 = client_with_token.post("/api/v1/posts/", data=json.dumps(body), content_type="application/json")
         assert r1.status_code == 201
-        r2 = client_with_token.post(
-            "/api/v1/posts/", data=json.dumps(body), content_type="application/json"
-        )
+        r2 = client_with_token.post("/api/v1/posts/", data=json.dumps(body), content_type="application/json")
         assert r2.status_code == 201
         # Replay returns the same Post ID — only one row was actually created.
         assert r1.json()["id"] == r2.json()["id"]
@@ -277,23 +278,27 @@ class TestIdempotency:
         common_key = "abc-456"
         r1 = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(social_account.id),
-                "caption": "first body",
-                "action": "draft",
-                "idempotency_key": common_key,
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(social_account.id),
+                    "caption": "first body",
+                    "action": "draft",
+                    "idempotency_key": common_key,
+                }
+            ),
             content_type="application/json",
         )
         assert r1.status_code == 201
         r2 = client_with_token.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(social_account.id),
-                "caption": "DIFFERENT body",
-                "action": "draft",
-                "idempotency_key": common_key,
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(social_account.id),
+                    "caption": "DIFFERENT body",
+                    "action": "draft",
+                    "idempotency_key": common_key,
+                }
+            ),
             content_type="application/json",
         )
         assert r2.status_code == 422
@@ -333,9 +338,7 @@ class TestIdempotency:
             response_body={},
         )
 
-        r = client_with_token.post(
-            "/api/v1/posts/", data=json.dumps(body), content_type="application/json"
-        )
+        r = client_with_token.post("/api/v1/posts/", data=json.dumps(body), content_type="application/json")
         assert r.status_code == 409
         # And nothing was actually created — the peer hasn't finished yet.
         assert Post.objects.count() == 0
@@ -356,15 +359,11 @@ class TestIdempotency:
             "action": "draft",
             "idempotency_key": "release-001",
         }
-        r = client_with_token.post(
-            "/api/v1/posts/", data=json.dumps(body), content_type="application/json"
-        )
+        r = client_with_token.post("/api/v1/posts/", data=json.dumps(body), content_type="application/json")
         assert r.status_code == 403
         # The claim row must NOT linger — otherwise the legitimate retry
         # would 409 on the now-permanent placeholder.
-        assert not IdempotencyRecord.objects.filter(
-            api_key=issued_key.api_key, key="release-001"
-        ).exists()
+        assert not IdempotencyRecord.objects.filter(api_key=issued_key.api_key, key="release-001").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -401,9 +400,7 @@ def out_of_scope_post(db, workspace, second_account, user):
     """
     from apps.composer.models import PlatformPost, Post
 
-    post = Post.objects.create(
-        workspace=workspace, author=user, caption="not for you"
-    )
+    post = Post.objects.create(workspace=workspace, author=user, caption="not for you")
     PlatformPost.objects.create(post=post, social_account=second_account, status="draft")
     return post
 
@@ -489,11 +486,13 @@ class TestPlatformQuota:
         for i in range(25):
             r = ig_client.post(
                 "/api/v1/posts/",
-                data=json.dumps({
-                    "social_account_id": str(ig_account.id),
-                    "caption": f"draft {i}",
-                    "action": "draft",
-                }),
+                data=json.dumps(
+                    {
+                        "social_account_id": str(ig_account.id),
+                        "caption": f"draft {i}",
+                        "action": "draft",
+                    }
+                ),
                 content_type="application/json",
             )
             assert r.status_code == 201
@@ -502,12 +501,14 @@ class TestPlatformQuota:
         when = (timezone.now() + timedelta(hours=1)).isoformat()
         r = ig_client.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(ig_account.id),
-                "caption": "this one should succeed",
-                "action": "schedule",
-                "scheduled_at": when,
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(ig_account.id),
+                    "caption": "this one should succeed",
+                    "action": "schedule",
+                    "scheduled_at": when,
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 201, r.content
@@ -524,19 +525,23 @@ class TestPlatformQuota:
         for i in range(25):
             p = Post.objects.create(workspace=ig_account.workspace, caption=f"pre {i}")
             PlatformPost.objects.create(
-                post=p, social_account=ig_account, status="scheduled",
+                post=p,
+                social_account=ig_account,
+                status="scheduled",
                 scheduled_at=timezone.now() + timedelta(hours=2),
             )
 
         when = (timezone.now() + timedelta(hours=3)).isoformat()
         r = ig_client.post(
             "/api/v1/posts/",
-            data=json.dumps({
-                "social_account_id": str(ig_account.id),
-                "caption": "should 429",
-                "action": "schedule",
-                "scheduled_at": when,
-            }),
+            data=json.dumps(
+                {
+                    "social_account_id": str(ig_account.id),
+                    "caption": "should 429",
+                    "action": "schedule",
+                    "scheduled_at": when,
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 429
@@ -593,6 +598,4 @@ class TestFailedAuthThrottle:
         # (limit+1)-th attempt — verify_token must NOT be called.
         r = c.get("/api/v1/me/")
         assert r.status_code == 401
-        assert call_count["n"] == _AUTH_FAIL_LIMIT, (
-            "verify_token was called past the throttle threshold"
-        )
+        assert call_count["n"] == _AUTH_FAIL_LIMIT, "verify_token was called past the throttle threshold"

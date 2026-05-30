@@ -17,7 +17,6 @@ from typing import Literal
 
 from ninja import Field, Schema
 
-
 # ---------------------------------------------------------------------------
 # /me
 # ---------------------------------------------------------------------------
@@ -107,9 +106,7 @@ class UpdatePostRequest(Schema):
 
 
 class ScheduleRequest(Schema):
-    scheduled_at: dt.datetime = Field(
-        ..., description="UTC timestamp at which the publisher should fire the post."
-    )
+    scheduled_at: dt.datetime = Field(..., description="UTC timestamp at which the publisher should fire the post.")
 
 
 # ---------------------------------------------------------------------------

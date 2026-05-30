@@ -32,9 +32,9 @@ from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 from ninja.security import HttpBearer
 
+from apps.api.limits import is_failed_auth_ip_blocked, record_failed_auth
 from apps.api_keys.models import ApiKey
 from apps.api_keys.services import touch_last_used, verify_token
-from apps.api.limits import is_failed_auth_ip_blocked, record_failed_auth
 
 
 @dataclass(frozen=True)
@@ -68,10 +68,8 @@ def _resolve_effective_permissions(api_key: ApiKey) -> dict[str, bool]:
     if not granted or api_key.issued_by_id is None:
         return {k: False for k in granted}
     try:
-        membership = (
-            WorkspaceMembership.objects
-            .select_related("custom_role")
-            .get(user_id=api_key.issued_by_id, workspace_id=api_key.workspace_id)
+        membership = WorkspaceMembership.objects.select_related("custom_role").get(
+            user_id=api_key.issued_by_id, workspace_id=api_key.workspace_id
         )
     except WorkspaceMembership.DoesNotExist:
         # verify_token already rejects this path, but defend in depth.
@@ -137,7 +135,10 @@ class ApiKeyAuth(HttpBearer):
         )
         # ``request.user`` lets downstream code (e.g. audit logging,
         # author attribution on Post) treat the issuer as the actor.
-        request.user = user  # type: ignore[attr-defined]
+        # ``user`` is ``User | AnonymousUser`` (never None — the
+        # ``api_key.issued_by_id is None`` branch above produced an
+        # AnonymousUser), but mypy can't narrow that across the ternary.
+        request.user = user  # type: ignore[assignment]
 
         # Best-effort, debounced, single raw UPDATE; safe to run after
         # the response is built but doing it inline keeps the auth path

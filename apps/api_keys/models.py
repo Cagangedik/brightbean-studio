@@ -107,9 +107,7 @@ class ApiKey(models.Model):
 
         if self.revoked_at is not None:
             return False
-        if self.expires_at is not None and self.expires_at <= timezone.now():
-            return False
-        return True
+        return not (self.expires_at is not None and self.expires_at <= timezone.now())
 
 
 class ApiKeyAuditLog(models.Model):

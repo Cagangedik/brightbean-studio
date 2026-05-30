@@ -19,7 +19,6 @@ from django.http import HttpRequest
 from apps.api.models import IdempotencyRecord
 from apps.api_keys.models import ApiKey, ApiKeyAuditLog
 
-
 # ---------------------------------------------------------------------------
 # Audit log
 # ---------------------------------------------------------------------------
@@ -62,9 +61,7 @@ def log_audit_entry(
     except Exception:  # noqa: BLE001 — best-effort, swallow.
         import logging
 
-        logging.getLogger(__name__).warning(
-            "Failed to write ApiKeyAuditLog for key %s", api_key.id, exc_info=True
-        )
+        logging.getLogger(__name__).warning("Failed to write ApiKeyAuditLog for key %s", api_key.id, exc_info=True)
 
 
 def _client_ip(request: HttpRequest) -> str | None:
@@ -177,7 +174,7 @@ def claim_idempotency_slot(
             raise ValueError(
                 "idempotency_key reused with a different request body — "
                 "either change the key or send the original body."
-            )
+            ) from None
         if existing.response_status == PENDING_STATUS_SENTINEL:
             return "in_flight", None, None
         return "replay", existing.response_status, existing.response_body

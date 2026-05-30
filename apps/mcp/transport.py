@@ -158,9 +158,9 @@ def mcp_endpoint(request: HttpRequest):
     one token, as Codex review flagged.
     """
     context: dict[str, Any] = {
-        "api_key": request.api_key,
-        "workspace": request.workspace,
-        "membership": request.workspace_membership,
+        "api_key": request.api_key,  # type: ignore[attr-defined]  # set by ApiKeyAuth
+        "workspace": request.workspace,  # type: ignore[attr-defined]
+        "membership": request.workspace_membership,  # type: ignore[attr-defined]
         "request": request,
     }
 
@@ -176,9 +176,7 @@ def mcp_endpoint(request: HttpRequest):
     if isinstance(body, list):
         if not body:
             enforce_http_rate_limits(request, is_write=True)
-            return JsonResponse(
-                make_error(None, INVALID_REQUEST, "Empty batch"), status=400
-            )
+            return JsonResponse(make_error(None, INVALID_REQUEST, "Empty batch"), status=400)
         responses = []
         for msg in body:
             # One rate-limit charge per JSON-RPC message — agents that
@@ -239,7 +237,11 @@ def _status_for_response(response: dict | None) -> int:
         return 200
     code = err.get("code")
     # JSON-RPC codes are mostly negative; map the conventional ones
-    # to an approximate HTTP code so they're searchable.
+    # to an approximate HTTP code so they're searchable. ``code`` arrives
+    # via JSON parsing so it may be any type; coerce to int (or use the
+    # 400 default) before the dict lookup.
+    if not isinstance(code, int):
+        return 400
     return {
         -32700: 400,  # parse error
         -32600: 400,  # invalid request
@@ -259,9 +261,7 @@ def _log_mcp_audit(request: HttpRequest, msg: dict, *, status_code: int) -> None
     method = msg.get("method", "unknown") if isinstance(msg, dict) else "unknown"
     action = f"mcp.{method}"
     if method == "tools/call":
-        tool_name = ((msg.get("params") or {}) if isinstance(msg, dict) else {}).get(
-            "name"
-        )
+        tool_name = ((msg.get("params") or {}) if isinstance(msg, dict) else {}).get("name")
         if isinstance(tool_name, str):
             action = f"mcp.tools/call:{tool_name}"
     log_audit_entry(request, action=action, target_id=None, status_code=status_code)

@@ -54,9 +54,13 @@ api.add_router("/mcp", mcp_router)
 
 @api.exception_handler(HttpError)
 def _http_error_handler(request: HttpRequest, exc: HttpError) -> HttpResponse:
-    body, headers = _parse_quota_message(exc.message) if exc.status_code == 429 else (
-        {"error": _slug_for(exc.status_code), "detail": exc.message},
-        {},
+    body, headers = (
+        _parse_quota_message(exc.message)
+        if exc.status_code == 429
+        else (
+            {"error": _slug_for(exc.status_code), "detail": exc.message},
+            {},
+        )
     )
     response = JsonResponse(body, status=exc.status_code)
     for k, v in headers.items():

@@ -19,11 +19,10 @@ from django.utils import timezone
 
 from apps.api_keys.models import ApiKey
 from apps.members.models import (
-    OrgMembership,
     PERMISSION_KEYS,
+    OrgMembership,
     WorkspaceMembership,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -150,10 +149,9 @@ class TestListPage:
         # Empty state — no rows yet.
         assert b"No API keys issued yet." in r.content
 
-    def test_member_without_manage_api_keys_is_forbidden(
-        self, member_user, member_membership
-    ):
+    def test_member_without_manage_api_keys_is_forbidden(self, member_user, member_membership):
         from django.test import Client
+
         from apps.members.models import has_org_permission
 
         # Sanity-check: the membership is MEMBER and lacks manage_api_keys.
@@ -182,9 +180,7 @@ class TestListPage:
 
 @pytest.mark.django_db
 class TestWorkspaceOptionsPartial:
-    def test_returns_connected_accounts_only(
-        self, admin_client, workspace, social_account, disconnected_account
-    ):
+    def test_returns_connected_accounts_only(self, admin_client, workspace, social_account, disconnected_account):
         r = admin_client.get(
             reverse("api_keys:workspace_options"),
             {"workspace_id": str(workspace.id)},
@@ -215,9 +211,7 @@ class TestWorkspaceOptionsPartial:
         # Empty body — same UX as "no workspace picked".
         assert r.content == b""
 
-    def test_permissions_intersected_with_issuer(
-        self, admin_client, workspace, social_account
-    ):
+    def test_permissions_intersected_with_issuer(self, admin_client, workspace, social_account):
         """An owner sees every permission; a non-owner doesn't."""
         r = admin_client.get(
             reverse("api_keys:workspace_options"),
@@ -236,9 +230,7 @@ class TestWorkspaceOptionsPartial:
 
 @pytest.mark.django_db
 class TestIssue:
-    def test_happy_path_creates_key_and_reveals_token(
-        self, admin_client, workspace, social_account
-    ):
+    def test_happy_path_creates_key_and_reveals_token(self, admin_client, workspace, social_account):
         r = admin_client.post(
             reverse("api_keys:issue"),
             {
@@ -262,9 +254,7 @@ class TestIssue:
         assert keys[0].name == "test bot"
         assert "create_posts" in (keys[0].permissions or [])
 
-    def test_missing_name_is_rejected(
-        self, admin_client, workspace, social_account
-    ):
+    def test_missing_name_is_rejected(self, admin_client, workspace, social_account):
         r = admin_client.post(
             reverse("api_keys:issue"),
             {
@@ -278,9 +268,7 @@ class TestIssue:
         assert ApiKey.objects.count() == 0
         assert b"Name is required" in r.content
 
-    def test_foreign_workspace_is_rejected(
-        self, admin_client, social_account, db
-    ):
+    def test_foreign_workspace_is_rejected(self, admin_client, social_account, db):
         """A tampered POST naming a workspace from another org must fail
         defence-in-depth, not just rely on the UI dropdown.
         """
@@ -288,9 +276,7 @@ class TestIssue:
         from apps.workspaces.models import Workspace
 
         other_org = Organization.objects.create(name="Other")
-        foreign_ws = Workspace.objects.create(
-            name="Foreign", organization=other_org
-        )
+        foreign_ws = Workspace.objects.create(name="Foreign", organization=other_org)
         r = admin_client.post(
             reverse("api_keys:issue"),
             {
@@ -303,18 +289,14 @@ class TestIssue:
         assert ApiKey.objects.count() == 0
         assert b"not in this organisation" in r.content
 
-    def test_account_outside_workspace_rejected(
-        self, admin_client, workspace, db
-    ):
+    def test_account_outside_workspace_rejected(self, admin_client, workspace, db):
         """Social account from a different workspace must not be accepted
         even if the workspace_id is legitimate.
         """
         from apps.social_accounts.models import SocialAccount
         from apps.workspaces.models import Workspace
 
-        other_ws = Workspace.objects.create(
-            name="Other WS", organization=workspace.organization
-        )
+        other_ws = Workspace.objects.create(name="Other WS", organization=workspace.organization)
         foreign_sa = SocialAccount.objects.create(
             workspace=other_ws,
             platform="linkedin_personal",
@@ -342,9 +324,7 @@ class TestIssue:
 
 @pytest.mark.django_db
 class TestRevoke:
-    def test_revoke_flips_revoked_at(
-        self, admin_client, admin_user, workspace, social_account
-    ):
+    def test_revoke_flips_revoked_at(self, admin_client, admin_user, workspace, social_account):
         from apps.api_keys import services
 
         issued = services.issue_api_key(
@@ -361,17 +341,15 @@ class TestRevoke:
         issued.api_key.refresh_from_db()
         assert issued.api_key.revoked_at is not None
 
-    def test_revoke_foreign_org_key_404s(
-        self, admin_client, admin_user, workspace, social_account, db
-    ):
+    def test_revoke_foreign_org_key_404s(self, admin_client, admin_user, workspace, social_account, db):
         """Trying to revoke a key in another org must 404, not silently
         succeed and not 500.
         """
+        from apps.accounts.models import User
         from apps.api_keys import services
         from apps.organizations.models import Organization
-        from apps.workspaces.models import Workspace
-        from apps.accounts.models import User
         from apps.social_accounts.models import SocialAccount
+        from apps.workspaces.models import Workspace
 
         other_org = Organization.objects.create(name="Other")
         foreign_ws = Workspace.objects.create(name="Foreign", organization=other_org)

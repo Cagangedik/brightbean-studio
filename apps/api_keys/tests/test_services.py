@@ -14,7 +14,6 @@ from apps.api_keys import services
 from apps.api_keys.models import ApiKey
 from apps.members.models import OrgMembership, WorkspaceMembership
 
-
 # ---------------------------------------------------------------------------
 # Fixtures — minimal org/workspace/account/user scaffold for issuance tests.
 # ---------------------------------------------------------------------------
@@ -252,9 +251,7 @@ class TestVerifyToken:
         _cache.delete(services._active_cache_key(issued.api_key.lookup_prefix))
         assert services.verify_token(issued.plaintext_token) is None
 
-    def test_issuer_loses_workspace_membership_returns_none(
-        self, workspace, workspace_owner, social_account
-    ):
+    def test_issuer_loses_workspace_membership_returns_none(self, workspace, workspace_owner, social_account):
         """Regression test for Codex P1#2 — the model contract says
         "if they lose membership the key dies on next use"; verify_token
         must enforce that even on an unrevoked, unexpired key.
@@ -279,9 +276,7 @@ class TestVerifyToken:
 
         assert services.verify_token(issued.plaintext_token) is None
 
-    def test_issuer_deleted_returns_none(
-        self, workspace, workspace_owner, social_account
-    ):
+    def test_issuer_deleted_returns_none(self, workspace, workspace_owner, social_account):
         """If the issuer is hard-deleted, ``issued_by`` is set to NULL by
         ``on_delete=SET_NULL``. verify_token must reject the now-orphaned key.
         """
@@ -400,9 +395,7 @@ class TestIssuanceGuards:
                 permissions=[],
             )
 
-    def test_rejects_issuer_with_no_org_membership_at_all(
-        self, workspace, social_account, db
-    ):
+    def test_rejects_issuer_with_no_org_membership_at_all(self, workspace, social_account, db):
         """A user who isn't in the org at all can't mint a key either —
         ``has_org_permission(None, ...)`` returns False, so the gate trips
         before we even hit the workspace check.
@@ -464,9 +457,7 @@ class TestTouchLastUsed:
         # IP did not change because no UPDATE was issued.
         assert issued.api_key.last_used_ip == "1.1.1.1"
 
-    def test_debounce_holds_when_called_via_cached_verify_token(
-        self, workspace, workspace_owner, social_account
-    ):
+    def test_debounce_holds_when_called_via_cached_verify_token(self, workspace, workspace_owner, social_account):
         """Regression test for Codex P2 — the previous in-memory debounce
         gated on ``api_key.last_used_at``, which is frozen at row-cache
         write time. A second verify_token within the cache TTL would have

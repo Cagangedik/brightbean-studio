@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime as dt
 
 from django.conf import settings
+from django.core.cache import cache as _cache
 from django.http import HttpRequest
 from django.utils import timezone
 from django_ratelimit.core import is_ratelimited
@@ -139,8 +140,7 @@ def check_platform_quota(social_account: SocialAccount) -> None:
         # quota-consuming ``updated_at`` lets ``retry_after`` reflect
         # when the bucket will next free up.
         oldest = (
-            PlatformPost.objects
-            .filter(
+            PlatformPost.objects.filter(
                 social_account=social_account,
                 updated_at__gte=timezone.now() - dt.timedelta(hours=24),
                 status__in=QUOTA_CONSUMING_STATUSES,
@@ -149,11 +149,7 @@ def check_platform_quota(social_account: SocialAccount) -> None:
             .values_list("updated_at", flat=True)
             .first()
         )
-        retry_after_seconds = (
-            int((oldest + dt.timedelta(hours=24) - timezone.now()).total_seconds())
-            if oldest
-            else 60
-        )
+        retry_after_seconds = int((oldest + dt.timedelta(hours=24) - timezone.now()).total_seconds()) if oldest else 60
         # 1s floor so the client doesn't hammer us at the boundary.
         retry_after_seconds = max(retry_after_seconds, 1)
         raise HttpError(
@@ -173,10 +169,7 @@ def _format_quota_message(*, tier: str, limit: int, remaining: int, retry_after:
     The router-level error handler in ``api.py`` rewraps this into the
     uniform JSON shape with a ``Retry-After`` header.
     """
-    return (
-        f"rate_limited tier={tier} limit={limit} remaining={remaining} "
-        f"retry_after={retry_after}"
-    )
+    return f"rate_limited tier={tier} limit={limit} remaining={remaining} retry_after={retry_after}"
 
 
 # ---------------------------------------------------------------------------
@@ -195,17 +188,17 @@ IP_FAILED_AUTH_RATE = "10/m"
 
 
 def _ratelimit_key_apikey_writes(_group: str, request: HttpRequest) -> str:
-    api_key: ApiKey = request.auth  # set by ApiKeyAuth
+    api_key: ApiKey = request.auth  # type: ignore[attr-defined]  # set by ApiKeyAuth
     return f"apikey:{api_key.id}:w"
 
 
 def _ratelimit_key_apikey_reads(_group: str, request: HttpRequest) -> str:
-    api_key: ApiKey = request.auth
+    api_key: ApiKey = request.auth  # type: ignore[attr-defined]
     return f"apikey:{api_key.id}:r"
 
 
 def _ratelimit_key_workspace_writes(_group: str, request: HttpRequest) -> str:
-    api_key: ApiKey = request.auth
+    api_key: ApiKey = request.auth  # type: ignore[attr-defined]
     return f"ws:{api_key.workspace_id}:w"
 
 
@@ -229,7 +222,7 @@ def enforce_http_rate_limits(request: HttpRequest, *, is_write: bool) -> None:
     helpers. Per-tier rates honour per-key overrides; the workspace
     aggregate is global.
     """
-    api_key: ApiKey = request.auth
+    api_key: ApiKey = request.auth  # type: ignore[attr-defined]
     tier_rate = (
         _override_or(api_key, "rate_override_writes", DEFAULT_WRITE_RATE)
         if is_write
@@ -307,8 +300,6 @@ def _parse_rate_num(rate: str) -> int:
 # subsequent failures (preserving the TTL), and the threshold check
 # is the tighter ``count >= limit``. Same response shape on the
 # blocked path (401, not 429) so an attacker can't detect the throttle.
-
-from django.core.cache import cache as _cache
 
 _AUTH_FAIL_LIMIT = 10
 _AUTH_FAIL_WINDOW_SECONDS = 60

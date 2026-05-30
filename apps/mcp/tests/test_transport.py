@@ -17,18 +17,16 @@ from django.utils import timezone
 
 from apps.api_keys import services
 from apps.composer.models import PlatformPost, Post
-from apps.members.models import (
-    OrgMembership,
-    PERMISSION_KEYS,
-    WorkspaceMembership,
-)
 from apps.mcp.protocol import (
-    INTERNAL_ERROR,
     INVALID_PARAMS,
     METHOD_NOT_FOUND,
     PARSE_ERROR,
 )
-
+from apps.members.models import (
+    PERMISSION_KEYS,
+    OrgMembership,
+    WorkspaceMembership,
+)
 
 # ---------------------------------------------------------------------------
 # Test client — forces ``secure=True`` so ApiKeyAuth's HTTPS guard
@@ -94,9 +92,7 @@ def workspace(db, organization):
 
 @pytest.fixture
 def owner_memberships(db, user, organization, workspace):
-    OrgMembership.objects.create(
-        user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER
-    )
+    OrgMembership.objects.create(user=user, organization=organization, org_role=OrgMembership.OrgRole.OWNER)
     return WorkspaceMembership.objects.create(
         user=user,
         workspace=workspace,
@@ -189,9 +185,7 @@ class TestProtocolMechanics:
     def test_notification_returns_202_no_body(self, client_with_token):
         """Notifications have no ``id`` and per JSON-RPC must not get a reply."""
         msg = {"jsonrpc": "2.0", "method": "notifications/initialized"}
-        r = client_with_token.post(
-            MCP_URL, data=json.dumps(msg), content_type="application/json"
-        )
+        r = client_with_token.post(MCP_URL, data=json.dumps(msg), content_type="application/json")
         assert r.status_code == 202
         assert r.content == b""
 
@@ -201,9 +195,7 @@ class TestProtocolMechanics:
         assert body["error"]["code"] == METHOD_NOT_FOUND
 
     def test_invalid_json_returns_parse_error(self, client_with_token):
-        r = client_with_token.post(
-            MCP_URL, data="{not json", content_type="application/json"
-        )
+        r = client_with_token.post(MCP_URL, data="{not json", content_type="application/json")
         assert r.status_code == 400
         body = r.json()
         assert body["error"]["code"] == PARSE_ERROR
@@ -218,9 +210,7 @@ class TestProtocolMechanics:
         assert {b["id"] for b in body} == {1, 2}
 
     def test_empty_batch_is_400(self, client_with_token):
-        r = client_with_token.post(
-            MCP_URL, data="[]", content_type="application/json"
-        )
+        r = client_with_token.post(MCP_URL, data="[]", content_type="application/json")
         assert r.status_code == 400
 
 
@@ -257,9 +247,7 @@ class TestToolsList:
 
 @pytest.mark.django_db
 class TestListAccountsTool:
-    def test_returns_only_allowlisted_accounts(
-        self, client_with_token, social_account, second_account
-    ):
+    def test_returns_only_allowlisted_accounts(self, client_with_token, social_account, second_account):
         status, body = _post(
             client_with_token,
             _rpc("tools/call", {"name": "list_accounts", "arguments": {}}),
@@ -305,9 +293,7 @@ class TestCreateDraftTool:
         assert Post.objects.count() == 1
         assert PlatformPost.objects.filter(status="draft").count() == 1
 
-    def test_rejects_account_outside_allowlist(
-        self, client_with_token, second_account
-    ):
+    def test_rejects_account_outside_allowlist(self, client_with_token, second_account):
         status, body = _post(
             client_with_token,
             _rpc(
@@ -325,9 +311,7 @@ class TestCreateDraftTool:
         assert "allowlist" in body["error"]["message"].lower()
         assert Post.objects.count() == 0
 
-    def test_missing_required_arguments_returns_invalid_params(
-        self, client_with_token
-    ):
+    def test_missing_required_arguments_returns_invalid_params(self, client_with_token):
         status, body = _post(
             client_with_token,
             _rpc("tools/call", {"name": "create_draft", "arguments": {}}),
@@ -435,9 +419,7 @@ def scheduled_post(db, social_account, user, workspace):
 
 @pytest.mark.django_db
 class TestCancelPostTool:
-    def test_cancel_transitions_scheduled_to_draft(
-        self, client_with_token, scheduled_post
-    ):
+    def test_cancel_transitions_scheduled_to_draft(self, client_with_token, scheduled_post):
         status, body = _post(
             client_with_token,
             _rpc(
@@ -469,9 +451,7 @@ def read_only_membership(db, organization, workspace):
         name="RO",
         tos_accepted_at=timezone.now(),
     )
-    OrgMembership.objects.create(
-        user=u, organization=organization, org_role=OrgMembership.OrgRole.ADMIN
-    )
+    OrgMembership.objects.create(user=u, organization=organization, org_role=OrgMembership.OrgRole.ADMIN)
     return WorkspaceMembership.objects.create(
         user=u,
         workspace=workspace,
@@ -499,9 +479,7 @@ def read_only_client(read_only_key):
 
 @pytest.mark.django_db
 class TestPermissionGating:
-    def test_read_only_key_cannot_create_draft(
-        self, read_only_client, social_account
-    ):
+    def test_read_only_key_cannot_create_draft(self, read_only_client, social_account):
         status, body = _post(
             read_only_client,
             _rpc(
@@ -518,9 +496,7 @@ class TestPermissionGating:
         assert body["error"]["code"] == INVALID_PARAMS
         assert "permission denied" in body["error"]["message"].lower()
 
-    def test_read_only_key_can_still_list_accounts(
-        self, read_only_client, social_account
-    ):
+    def test_read_only_key_can_still_list_accounts(self, read_only_client, social_account):
         """list_accounts has no permission requirement — it's pure scope echo.
         A read-only key must be able to call it.
         """

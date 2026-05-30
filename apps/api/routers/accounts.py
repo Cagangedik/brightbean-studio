@@ -6,7 +6,7 @@ from ninja import Router
 
 from apps.api.limits import enforce_http_rate_limits
 from apps.api.middleware import log_audit_entry
-from apps.api.schemas import AccountSummary, AccountsListResponse
+from apps.api.schemas import AccountsListResponse, AccountSummary
 
 router = Router(tags=["accounts"])
 
