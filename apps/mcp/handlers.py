@@ -391,3 +391,88 @@ register_tool(
         handler=_cancel_post,
     )
 )
+
+
+# ---------------------------------------------------------------------------
+# Tool: schedule_draft — REST-parity transition of an existing draft post
+# ---------------------------------------------------------------------------
+
+
+def _schedule_draft(args: dict, context: dict[str, Any]) -> dict:
+    """Promote every draft child of an existing post to ``scheduled``.
+
+    Mirrors the REST ``POST /api/v1/posts/{post_id}/schedule`` route.
+    Closes the asymmetry where MCP previously had no way to transition
+    an existing draft to scheduled — ``schedule_post`` always creates a
+    NEW post in scheduled state. Without this tool, "draft now, schedule
+    later" via pure MCP forced clients to recreate the post or fall back
+    to REST for the one transition.
+    """
+    from django.db import transaction
+
+    _require_perm(context, "create_posts")
+    # Same permission contract as the REST route: pushing a post into
+    # the publisher's poll loop requires ``publish_directly``.
+    _require_perm(context, "publish_directly")
+    if "post_id" not in args:
+        raise JsonRpcError(INVALID_PARAMS, "post_id is required")
+    if "scheduled_at" not in args:
+        raise JsonRpcError(INVALID_PARAMS, "scheduled_at is required (ISO 8601)")
+    scheduled_at = _parse_iso_datetime(args["scheduled_at"], "scheduled_at")
+
+    api_key = context["api_key"]
+    post = _get_post_for_key(api_key, args["post_id"])
+    drafts = [pp for pp in post.platform_posts.all() if pp.status == "draft"]
+    if not drafts:
+        raise JsonRpcError(INVALID_PARAMS, "No draft platform posts to schedule")
+
+    # Per-platform 24h quota check, one per child, BEFORE we mutate
+    # anything — over-quota fails the whole call with no partial commit.
+    for pp in drafts:
+        try:
+            check_platform_quota(pp.social_account)
+        except HttpError as exc:
+            raise JsonRpcError(
+                INVALID_PARAMS,
+                f"Per-platform daily quota reached for {pp.social_account.platform}: {exc.message}",
+            ) from exc
+
+    # Wrap the per-child loop in a single outer atomic — same reasoning
+    # as ``cancel_post``: a mid-loop ValueError (concurrent admin
+    # transition, state-machine rejection on a later child, workspace
+    # approval-mode rejection from ``transition_platform_post``) rolls
+    # back any earlier ``scheduled`` commits.
+    with transaction.atomic():
+        for pp in drafts:
+            try:
+                transition_platform_post(pp, "scheduled", scheduled_at=scheduled_at)
+            except ValueError as exc:
+                raise JsonRpcError(INVALID_PARAMS, str(exc)) from exc
+    post.refresh_from_db()
+    return _wrap_text(_serialize_post(post))
+
+
+register_tool(
+    Tool(
+        name="schedule_draft",
+        description=(
+            "Schedule an EXISTING draft post — transitions every draft child to scheduled "
+            "at the given UTC timestamp. Use this for the two-step flow "
+            "'create_draft now, schedule_draft later'. For one-shot create-and-schedule, "
+            "use schedule_post instead. Requires both create_posts and publish_directly."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "post_id": {"type": "string", "format": "uuid"},
+                "scheduled_at": {
+                    "type": "string",
+                    "description": "ISO 8601 UTC timestamp (e.g. 2026-06-01T14:00:00Z)",
+                },
+            },
+            "required": ["post_id", "scheduled_at"],
+            "additionalProperties": False,
+        },
+        handler=_schedule_draft,
+    )
+)

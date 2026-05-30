@@ -417,6 +417,72 @@ def scheduled_post(db, social_account, user, workspace):
     return p
 
 
+@pytest.fixture
+def draft_post(db, social_account, user, workspace):
+    p = Post.objects.create(workspace=workspace, author=user, caption="ready to schedule")
+    PlatformPost.objects.create(post=p, social_account=social_account, status="draft")
+    return p
+
+
+@pytest.mark.django_db
+class TestScheduleDraftTool:
+    """The schedule_draft tool closes the MCP/REST asymmetry: previously
+    MCP had no equivalent of ``POST /api/v1/posts/{id}/schedule``, so a
+    "draft now, schedule later" flow forced clients to either recreate
+    via ``schedule_post`` or fall back to REST.
+    """
+
+    def test_promotes_draft_to_scheduled(self, client_with_token, draft_post):
+        when = (timezone.now() + timedelta(hours=2)).isoformat()
+        status, body = _post(
+            client_with_token,
+            _rpc(
+                "tools/call",
+                {
+                    "name": "schedule_draft",
+                    "arguments": {"post_id": str(draft_post.id), "scheduled_at": when},
+                },
+            ),
+        )
+        assert status == 200
+        assert "error" not in body, body
+        inner = json.loads(body["result"]["content"][0]["text"])
+        assert inner["platform_posts"][0]["status"] == "scheduled"
+        draft_post.refresh_from_db()
+        assert draft_post.platform_posts.get().status == "scheduled"
+
+    def test_409_equivalent_when_no_drafts_to_schedule(self, client_with_token, scheduled_post):
+        # ``scheduled_post`` fixture is already in scheduled state with no
+        # draft children — schedule_draft should refuse.
+        when = (timezone.now() + timedelta(hours=2)).isoformat()
+        status, body = _post(
+            client_with_token,
+            _rpc(
+                "tools/call",
+                {
+                    "name": "schedule_draft",
+                    "arguments": {"post_id": str(scheduled_post.id), "scheduled_at": when},
+                },
+            ),
+        )
+        assert body["error"]["code"] == INVALID_PARAMS
+        assert "no draft" in body["error"]["message"].lower()
+
+    def test_missing_scheduled_at_returns_invalid_params(self, client_with_token, draft_post):
+        status, body = _post(
+            client_with_token,
+            _rpc(
+                "tools/call",
+                {
+                    "name": "schedule_draft",
+                    "arguments": {"post_id": str(draft_post.id)},
+                },
+            ),
+        )
+        # Caught by jsonschema validation against the published inputSchema.
+        assert body["error"]["code"] == INVALID_PARAMS
+
+
 @pytest.mark.django_db
 class TestCancelPostTool:
     def test_cancel_transitions_scheduled_to_draft(self, client_with_token, scheduled_post):
