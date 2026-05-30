@@ -702,3 +702,97 @@ class TestReverseM2mInvalidation:
         assert cache.get(cache_key) is None, (
             "reverse SocialAccount.api_keys.clear() didn't bust the row cache; pre_clear snapshot wasn't used"
         )
+
+
+# ===========================================================================
+# Codex PR #53 round-4 — PATCH scheduled_at requires publish_directly on
+# already-scheduled posts (privilege escalation: instant-publish + content-burial)
+# ===========================================================================
+
+
+@pytest.mark.django_db
+class TestPatchScheduledAtRequiresPublishDirectly:
+    """The security review caught that `PATCH /api/v1/posts/{id}` only
+    enforced `create_posts`, but it accepted `scheduled_at` and pushed it
+    onto every scheduled child via `scheduled_children.update(...)`. A
+    key with only `create_posts` could therefore (a) push an admin-
+    scheduled post to "now" so the publisher fires it on the next ~15s
+    tick — instant publish without `publish_directly`, OR (b) push it to
+    year 2099 to silently bury admin-approved content. Both are
+    privilege-boundary violations because the create / schedule routes
+    and every MCP transition tool gate this exact mutation on
+    `publish_directly`.
+    """
+
+    def test_patch_scheduled_at_on_scheduled_post_requires_publish_directly(
+        self, write_only_client, write_only_membership, workspace, social_account
+    ):
+        # Admin pre-schedules a post (bypassing HTTP perm checks so we
+        # can isolate the PATCH route's gate).
+        original_when = timezone.now() + timedelta(days=7)
+        post = Post.objects.create(workspace=workspace, caption="admin scheduled")
+        pp = PlatformPost.objects.create(
+            post=post,
+            social_account=social_account,
+            status="scheduled",
+            scheduled_at=original_when,
+        )
+
+        # Editor-scope key (create_posts only) tries to push it to "now".
+        when_now = timezone.now().isoformat()
+        r = write_only_client.patch(
+            f"/api/v1/posts/{post.id}",
+            data=json.dumps({"scheduled_at": when_now}),
+            content_type="application/json",
+        )
+        assert r.status_code == 403
+        assert "publish_directly" in r.json()["detail"]
+
+        # And the DB row is unchanged — no silent partial commit.
+        pp.refresh_from_db()
+        assert pp.scheduled_at == original_when
+        assert pp.status == "scheduled"
+
+    def test_patch_caption_only_on_scheduled_post_still_allowed(
+        self, write_only_client, write_only_membership, workspace, social_account
+    ):
+        """Editor-scope keys must still be able to edit copy on a
+        scheduled post (the legitimate "fix a typo before it publishes"
+        flow). Only `scheduled_at` mutations need the elevated permission.
+        """
+        post = Post.objects.create(workspace=workspace, caption="original")
+        PlatformPost.objects.create(
+            post=post,
+            social_account=social_account,
+            status="scheduled",
+            scheduled_at=timezone.now() + timedelta(days=7),
+        )
+
+        r = write_only_client.patch(
+            f"/api/v1/posts/{post.id}",
+            data=json.dumps({"caption": "typo fixed"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        post.refresh_from_db()
+        assert post.caption == "typo fixed"
+
+    def test_patch_scheduled_at_on_draft_only_post_allowed(
+        self, write_only_client, write_only_membership, workspace, social_account
+    ):
+        """The gate fires only when the post has scheduled children. A
+        pure draft has no scheduled children for the mutation to affect,
+        so the route should still accept the timestamp (it'll just live
+        on Post.scheduled_at until the draft is later promoted via a
+        path that DOES require publish_directly).
+        """
+        post = Post.objects.create(workspace=workspace, caption="just a draft")
+        PlatformPost.objects.create(post=post, social_account=social_account, status="draft")
+
+        future = (timezone.now() + timedelta(days=1)).isoformat()
+        r = write_only_client.patch(
+            f"/api/v1/posts/{post.id}",
+            data=json.dumps({"scheduled_at": future}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200

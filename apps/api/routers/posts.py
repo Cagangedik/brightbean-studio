@@ -288,6 +288,17 @@ def update(request, post_id: uuid.UUID, payload: UpdatePostRequest):
     if not post.is_editable:
         raise HttpError(409, f"Post is not editable in status {post.status}.")
 
+    # Re-timing a scheduled post is publish-budget behaviour: pushing
+    # ``scheduled_at`` into the past makes the publisher fire the post on
+    # its very next poll (~15 s), and pushing it far into the future buries
+    # admin-scheduled content. Either is a privilege escalation for a key
+    # that doesn't hold ``publish_directly`` — the create / schedule routes
+    # and every MCP transition tool gate this exact mutation on that
+    # permission, and the PATCH route must do the same to stay consistent.
+    # Codex PR #53 security review (round 4) caught this gap.
+    if payload.scheduled_at is not None and post.platform_posts.filter(status="scheduled").exists():
+        _require_perm(request, "publish_directly")
+
     # ---- Validate-everything-first.
     #
     # Codex review found two bugs in the previous implementation:
