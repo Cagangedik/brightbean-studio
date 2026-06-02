@@ -801,8 +801,7 @@ class LinkedInProvider(SocialProvider):
             last_status = status
             if time.monotonic() >= deadline:
                 raise PublishError(
-                    f"Timed out waiting for LinkedIn video to become AVAILABLE "
-                    f"(last status: {last_status})",
+                    f"Timed out waiting for LinkedIn video to become AVAILABLE (last status: {last_status})",
                     platform=self.platform_name,
                 )
             time.sleep(poll_interval)
