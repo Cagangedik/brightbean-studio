@@ -184,7 +184,7 @@ def all_posts_for(
                 "date": p.published_at.date().isoformat() if p.published_at else "",
                 "days_ago": (timezone.now() - p.published_at).days if p.published_at else None,
                 "media_kind": media_kind,
-                "thumbnail_url": _first_thumbnail_url(p),
+                "media_preview": _first_media_preview(p),
                 "stats": stats_by_post.get(p.id, {}),
             }
         )
@@ -241,6 +241,7 @@ def post_detail(post: PlatformPost) -> dict[str, Any]:
         "date": post.published_at.date().isoformat() if post.published_at else "",
         "days_ago": (timezone.now() - post.published_at).days if post.published_at else None,
         "media_kind": _media_kind(post),
+        "media_preview": _first_media_preview(post),
         "metric_tiles": [
             {
                 "key": m,
@@ -313,13 +314,19 @@ def _media_kind(post: PlatformPost) -> str:
     return platform_default.get(post.social_account.platform, "Post")
 
 
-def _first_thumbnail_url(post: PlatformPost) -> str | None:
-    """URL of the first attachment's thumbnail, or the image file itself if no thumb."""
-    for pm in post.post.media_attachments.all():
-        asset = pm.media_asset
-        if asset.thumbnail:
-            return asset.thumbnail.url
-        if asset.is_image and asset.file:
-            return asset.file.url
+def _first_media_preview(post: PlatformPost) -> dict[str, str] | None:
+    """First attachment's preview: {"url", "kind"} where kind is "image" or "video".
+
+    Prefers the asset's generated thumbnail (always an image). Falls back to the
+    asset's own file so videos without a poster still render — the template uses
+    a ``<video>`` element with ``#t=0.5`` to show a poster frame.
+    """
+    pm = next(iter(post.post.media_attachments.all()), None)
+    if pm is None:
         return None
+    asset = pm.media_asset
+    if asset.thumbnail:
+        return {"url": asset.thumbnail.url, "kind": "image"}
+    if asset.file:
+        return {"url": asset.file.url, "kind": "video" if asset.is_video else "image"}
     return None
