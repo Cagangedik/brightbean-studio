@@ -39,6 +39,7 @@ A free hosted version is available at [brightbean.xyz/studio](https://brightbean
 | **Publishing engine** | Direct first-party API integrations (no aggregator), automatic retries, per-account rate-limit tracking, and a 90-day publish audit log. |
 | **Approval workflows** | Configurable stages (none / optional / internal / internal + client), threaded internal & external comments, reminders, and a full audit trail. |
 | **Unified social inbox** | Comments, mentions, DMs, and reviews from every connected platform in one place, with sentiment analysis, assignments, threaded replies, and historical backfill. |
+| **Analytics** | Per-post and channel-level performance from every connected platform's native API, with KPI cards, 7/30/90-day trend charts, and a sortable all-posts table for views, engagement, follower growth, reach, and watch time. |
 | **Media library** | Org- and workspace-scoped libraries with nested folders, auto-generated platform-optimized variants, and alt text. |
 | **Client portal** | Passwordless 30-day magic-link access so clients can approve or reject posts without creating an account. |
 | **Notifications** | In-app, email, and webhook delivery with per-user preferences for every event type. |
@@ -55,6 +56,9 @@ A free hosted version is available at [brightbean.xyz/studio](https://brightbean
   <tr>
     <td width="50%"><img src=".github/assets/BrightBean%20Studio%20Idea%20Kanban%20Board.webp" alt="Idea kanban board"><br><sub><b>Idea board</b> - Kanban workflow to keep track of all your post ideas.</sub></td>
     <td width="50%"><img src=".github/assets/BrightBean%20Social%20Media%20Platforms.webp" alt="Connected platforms"><br><sub><b>Connect anything</b> - 10+ first-party integrations, no aggregator.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src=".github/assets/BrightBean%20Studio%20Analytics.webp" alt="Analytics dashboard"><br><sub><b>Performance analytics</b> - per-post and channel-level metrics with KPI cards and trend charts.</sub></td>
   </tr>
 </table>
 
@@ -544,6 +548,72 @@ Options:
 - `--days N` - Number of days to backfill (default: 7)
 - `--platform NAME` - Only backfill a specific platform (e.g., `youtube`, `linkedin`, `tiktok`)
 - `--account-id UUID` - Only backfill a specific account
+
+## API & MCP for Agents
+
+BrightBean Studio ships a REST API and an MCP (Model Context Protocol) server so agents and scripts can read analytics, manage media, and create or schedule posts. Both share the same authentication, permission model, rate limits, and audit log. Pick whichever protocol fits your client.
+
+**Base URL:** `{APP_URL}/api/v1/` (e.g. `https://your-studio.example.com/api/v1/`)
+
+### Authentication
+
+Issue an API key from **Organization → API Keys**. Keys are workspace-scoped, can be allowlisted to specific social accounts, and inherit a subset of the issuer's workspace permissions. Revocation takes effect immediately. Send the key as a Bearer token:
+
+```
+Authorization: Bearer bb_studio_...
+```
+
+Permission keys: `create_posts`, `publish_directly`, `upload_media`, `view_analytics`. Each endpoint requires the relevant permission; missing permissions return `403`.
+
+### Rate Limits
+
+| Scope | Limit |
+|---|---|
+| Per-key writes | 120 / min |
+| Per-key reads | 300 / min |
+| Per-workspace aggregate | 1000 / min |
+
+Rate-limit responses (`429`) include `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` headers.
+
+### REST Endpoints
+
+| Method | Path | Purpose | Permission |
+|---|---|---|---|
+| `GET` | `/me` | Inspect caller scope and workspace permissions | — |
+| `GET` | `/accounts` | List connected social accounts | — |
+| `POST` | `/posts` | Create a draft or scheduled post | `create_posts` (+ `publish_directly` to schedule) |
+| `GET` | `/posts/{post_id}` | Read a single post | — |
+| `PATCH` | `/posts/{post_id}` | Update draft fields | `create_posts` |
+| `POST` | `/posts/{post_id}/schedule` | Schedule a draft | `create_posts` + `publish_directly` |
+| `POST` | `/posts/{post_id}/cancel` | Revert a scheduled post to draft | `create_posts` |
+| `GET` | `/analytics/accounts/{account_id}` | Channel analytics summary (7/30/90-day window) | `view_analytics` |
+| `GET` | `/analytics/posts/{post_id}` | Post analytics with per-platform metrics | `view_analytics` |
+| `POST` | `/media` | Upload a media file (multipart) | `upload_media` |
+| `GET` | `/media/{media_id}` | Retrieve a media asset | — |
+| `GET` | `/media` | List media assets (filter, paginate) | — |
+| `POST` | `/mcp` | JSON-RPC 2.0 endpoint for MCP clients | — |
+
+All write endpoints accept `idempotency_key` (or `Idempotency-Key` header) for safe retries.
+
+### MCP Tools
+
+The MCP server lives at `POST {APP_URL}/api/v1/mcp` and speaks JSON-RPC 2.0 over Streamable HTTP. It implements the standard `initialize`, `tools/list`, `tools/call`, and `ping` methods. Tools:
+
+| Tool | Purpose | Permission |
+|---|---|---|
+| `list_accounts` | List social accounts this API key can act on | — |
+| `create_draft` | Create a draft post (caption, title, media, first comment) | `create_posts` |
+| `schedule_post` | Create and schedule a post in one step | `create_posts` + `publish_directly` |
+| `schedule_draft` | Schedule an existing draft | `create_posts` + `publish_directly` |
+| `get_post` | Retrieve a post with aggregate status and per-platform state | — |
+| `cancel_post` | Revert a scheduled post back to draft | `create_posts` |
+| `search_media` | Find media assets by query, type, tags, or folder | — |
+| `get_media` | Retrieve a single media asset by ID | — |
+| `upload_media` | Upload a small base64-encoded file (≤ 1 MB raw). For larger files, use REST `POST /media`. | `upload_media` |
+| `get_account_analytics` | Channel analytics over a rolling 7–90 day window | `view_analytics` |
+| `get_post_analytics` | Per-platform metrics for a single post (safe for polling drafts) | `view_analytics` |
+
+To connect a client (Claude Desktop, Cursor, a custom agent), point it at `{APP_URL}/api/v1/mcp` and send the Bearer token in the `Authorization` header.
 
 ---
 
