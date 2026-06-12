@@ -221,12 +221,22 @@ class TikTokExtrasSyncTests(AccountScopeTestsBase):
         extra = self.tt_pp.platform_extra
         self.assertEqual(extra["privacy_level"], "SELF_ONLY")
         self.assertFalse(extra["disable_comment"])
-        # Duet/Stitch checkboxes absent from POST → treated as disallowed.
+        # "Reuse of content" checkbox absent from POST → both flags disabled.
         self.assertTrue(extra["disable_duet"])
         self.assertTrue(extra["disable_stitch"])
         self.assertTrue(extra["brand_content_toggle"])
         self.assertFalse(extra["brand_organic_toggle"])
         self.assertTrue(extra["is_aigc"])
+
+    def test_allow_reuse_enables_duet_and_stitch_together(self):
+        response = self.client.post(
+            self.save_url,
+            data=self._tiktok_payload(privacy_level="SELF_ONLY", allow_reuse="true"),
+        )
+        self.assertIn(response.status_code, (200, 204, 302))
+        self.tt_pp.refresh_from_db()
+        self.assertFalse(self.tt_pp.platform_extra["disable_duet"])
+        self.assertFalse(self.tt_pp.platform_extra["disable_stitch"])
 
     def test_invalid_privacy_level_left_unset(self):
         response = self.client.post(self.save_url, data=self._tiktok_payload(privacy_level="BOGUS"))

@@ -725,15 +725,14 @@
                              ttLoaded: false,
                              ttPrivacy: platformExtras[accId]?.privacy_level || '',
                              ttAllowComment: !platformExtras[accId]?.disable_comment,
-                             ttAllowDuet: !platformExtras[accId]?.disable_duet,
-                             ttAllowStitch: !platformExtras[accId]?.disable_stitch,
+                             ttAllowReuse: !(platformExtras[accId]?.disable_duet || platformExtras[accId]?.disable_stitch),
                              ttDisclose: !!(platformExtras[accId]?.brand_organic_toggle || platformExtras[accId]?.brand_content_toggle),
                              ttBrandOrganic: !!platformExtras[accId]?.brand_organic_toggle,
                              ttBrandContent: !!platformExtras[accId]?.brand_content_toggle,
                              ttAigc: !!platformExtras[accId]?.is_aigc,
                              get ttOptions() {
                                  const fromApi = this.tt?.privacy_level_options || [];
-                                 return fromApi.length ? fromApi : ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
+                                 return fromApi.length ? fromApi : ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'SELF_ONLY'];
                              },
                              get ttSelfOnlyLocked() {
                                  const opts = this.tt?.privacy_level_options || [];
@@ -756,8 +755,7 @@
                                      if (data) {
                                          tt = data;
                                          if (data.comment_disabled) ttAllowComment = false;
-                                         if (data.duet_disabled) ttAllowDuet = false;
-                                         if (data.stitch_disabled) ttAllowStitch = false;
+                                         if (data.duet_disabled && data.stitch_disabled) ttAllowReuse = false;
                                          const opts = data.privacy_level_options || [];
                                          if (ttPrivacy && opts.length && !opts.includes(ttPrivacy)) ttPrivacy = '';
                                      }
@@ -800,43 +798,43 @@
                         <!-- Interaction abilities -->
                         <div>
                             <label class="block text-[11px] font-semibold text-stone-400 uppercase tracking-wider mb-1.5">Allow users to:</label>
-                            <div class="flex flex-wrap gap-x-5 gap-y-2">
+                            <div class="space-y-2">
                                 <label class="flex items-center gap-2" :class="tt?.comment_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'">
                                     <input type="checkbox" :name="'tiktok_allow_comment_' + accId" value="true"
                                            x-model="ttAllowComment" :disabled="!!tt?.comment_disabled"
-                                           class="w-4 h-4 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
+                                           class="bb-checkbox w-4 h-4 rounded border-stone-300">
                                     <span class="text-sm text-stone-700">Comment</span>
                                 </label>
-                                <label class="flex items-center gap-2" :class="tt?.duet_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'">
-                                    <input type="checkbox" :name="'tiktok_allow_duet_' + accId" value="true"
-                                           x-model="ttAllowDuet" :disabled="!!tt?.duet_disabled"
-                                           class="w-4 h-4 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
-                                    <span class="text-sm text-stone-700">Duet</span>
-                                </label>
-                                <label class="flex items-center gap-2" :class="tt?.stitch_disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'">
-                                    <input type="checkbox" :name="'tiktok_allow_stitch_' + accId" value="true"
-                                           x-model="ttAllowStitch" :disabled="!!tt?.stitch_disabled"
-                                           class="w-4 h-4 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
-                                    <span class="text-sm text-stone-700">Stitch</span>
+                                <label class="flex items-start gap-2"
+                                       :class="(tt?.duet_disabled && tt?.stitch_disabled) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'">
+                                    <input type="checkbox" :name="'tiktok_allow_reuse_' + accId" value="true"
+                                           x-model="ttAllowReuse" :disabled="!!(tt?.duet_disabled && tt?.stitch_disabled)"
+                                           class="bb-checkbox w-4 h-4 mt-0.5 rounded border-stone-300">
+                                    <span class="text-sm text-stone-700">
+                                        Reuse of content
+                                        <span class="block text-[11px] text-stone-400 font-normal">Others can Duet, Stitch, use stickers and add this post to their story.</span>
+                                    </span>
                                 </label>
                             </div>
                         </div>
                         <!-- Commercial content disclosure -->
                         <div class="border-t border-stone-100 pt-3">
-                            <label class="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" x-model="ttDisclose"
-                                       @change="if (!ttDisclose) { ttBrandOrganic = false; ttBrandContent = false; }"
-                                       class="w-4 h-4 mt-0.5 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
+                            <div class="flex items-start justify-between gap-3">
                                 <span class="text-sm text-stone-700">
                                     Disclose post content
                                     <span class="block text-[11px] text-stone-400 font-normal">Let others know this post promotes a brand, product or service.</span>
                                 </span>
-                            </label>
-                            <div x-show="ttDisclose" x-transition class="mt-2 ml-6 space-y-2">
+                                <label class="bb-toggle mt-0.5">
+                                    <input type="checkbox" x-model="ttDisclose"
+                                           @change="if (!ttDisclose) { ttBrandOrganic = false; ttBrandContent = false; }">
+                                    <span class="bb-toggle-track"></span>
+                                </label>
+                            </div>
+                            <div x-show="ttDisclose" x-transition class="mt-2 space-y-2">
                                 <label class="flex items-start gap-2 cursor-pointer">
                                     <input type="checkbox" :name="'tiktok_brand_organic_' + accId" value="true"
                                            x-model="ttBrandOrganic"
-                                           class="w-4 h-4 mt-0.5 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
+                                           class="bb-checkbox w-4 h-4 mt-0.5 rounded border-stone-300">
                                     <span class="text-sm text-stone-700">
                                         Your brand
                                         <span class="block text-[11px] text-stone-400 font-normal">You're promoting your own business. The post will be labeled "Promotional content".</span>
@@ -846,7 +844,7 @@
                                     <input type="checkbox" :name="'tiktok_brand_content_' + accId" value="true"
                                            x-model="ttBrandContent"
                                            @change="if (ttBrandContent && ttPrivacy === 'SELF_ONLY') ttPrivacy = ''"
-                                           class="w-4 h-4 mt-0.5 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
+                                           class="bb-checkbox w-4 h-4 mt-0.5 rounded border-stone-300">
                                     <span class="text-sm text-stone-700">
                                         Branded content
                                         <span class="block text-[11px] text-stone-400 font-normal">You're promoting another brand or in a paid partnership. The post will be labeled "Paid partnership".</span>
@@ -856,15 +854,17 @@
                         </div>
                         <!-- AI-generated content -->
                         <div class="border-t border-stone-100 pt-3">
-                            <label class="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" :name="'tiktok_is_aigc_' + accId" value="true"
-                                       x-model="ttAigc"
-                                       class="w-4 h-4 mt-0.5 rounded border-stone-300 text-orange-500 focus:ring-orange-200">
+                            <div class="flex items-start justify-between gap-3">
                                 <span class="text-sm text-stone-700">
                                     AI-generated content
                                     <span class="block text-[11px] text-stone-400 font-normal">Add TikTok's AI-generated label if the post contains AI-generated content.</span>
                                 </span>
-                            </label>
+                                <label class="bb-toggle mt-0.5">
+                                    <input type="checkbox" :name="'tiktok_is_aigc_' + accId" value="true"
+                                           x-model="ttAigc">
+                                    <span class="bb-toggle-track"></span>
+                                </label>
+                            </div>
                         </div>
                         <!-- Compliance declaration (required by TikTok's integration guidelines) -->
                         <p class="text-[11px] text-stone-400 border-t border-stone-100 pt-3">
