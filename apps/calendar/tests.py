@@ -169,9 +169,7 @@ class PostingSlotCrossWorkspaceTests(TestCase):
         self.assertFalse(PostingSlot.objects.filter(id=self.slot_a.id).exists())
         # Second delete of the now-missing slot must NOT 404; with the posted
         # account id it still emits the grid-refresh trigger so the stale row clears.
-        second = self.client.post(
-            url, data={"social_account_id": str(self.account_a.id)}, HTTP_HX_REQUEST="true"
-        )
+        second = self.client.post(url, data={"social_account_id": str(self.account_a.id)}, HTTP_HX_REQUEST="true")
         self.assertEqual(second.status_code, 204)
         self.assertIn(str(self.account_a.id), second.headers.get("HX-Trigger", ""))
 
