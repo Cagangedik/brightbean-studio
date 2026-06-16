@@ -20,6 +20,20 @@ services:
     networks:
       - dokploy-network
 
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --appendonly no
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
   migrate:
     build: .
     command: python manage.py migrate --noinput
@@ -44,11 +58,14 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.production
       - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/brightbean
+      - REDIS_URL=redis://redis:6379/0
     expose:
       - "8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -63,9 +80,12 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.production
       - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/brightbean
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dokploy-network
@@ -73,6 +93,7 @@ services:
 volumes:
   postgres_data:
   media_data:
+  redis_data:
 
 networks:
   dokploy-network:

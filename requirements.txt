@@ -11,6 +11,11 @@ bcrypt>=4.2,<5.0
 # Background tasks
 django-background-tasks>=1.2,<2.0
 
+# Cache / shared nonce store (Django's RedisCache backend driver). Enables a
+# cross-worker cache so SSO single-use jti replay protection and rate limiting
+# work across all gunicorn workers when REDIS_URL is set.
+redis>=5.0,<6.0
+
 # Frontend
 django-tailwind[reload]>=3.8,<4.0
 django-htmx>=1.19,<2.0
