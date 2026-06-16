@@ -76,6 +76,8 @@ LOCAL_APPS = [
     "apps.mcp",
     "apps.oauth_server",
     "apps.analytics",
+    # External SSO bridge (Benerits admin → Brightbean deep-link auto-login).
+    "apps.sso",
     "theme",
 ]
 
@@ -547,3 +549,18 @@ if INTELLIGENCE_ENABLED:
                 f"localhost / 127.0.0.1 dev tunnels) — current value would "
                 f"leak Intelligence API keys in transit."
             )
+
+# --- External SSO (Benerits admin → Brightbean deep-link auto-login) ---
+# When SSO_ENABLED is true, /sso/launch accepts HS256 tickets signed with
+# BRIGHTBEAN_SSO_SECRET (must match the secret on the admin side) and
+# JIT-provisions the user into SSO_SHARED_ORG_NAME with a per-app workspace.
+BRIGHTBEAN_SSO_SECRET = env("BRIGHTBEAN_SSO_SECRET", default="")
+SSO_ENABLED = env.bool("SSO_ENABLED", default=bool(BRIGHTBEAN_SSO_SECRET))
+SSO_SHARED_ORG_NAME = env("SSO_SHARED_ORG_NAME", default="Benerits")
+
+# The admin panel triggers a top-level new-tab navigation to /sso/launch, so
+# the session cookie is set on a normal GET (SameSite=Lax already permits it).
+# Trust the admin origin for CSRF on any future POST-back surfaces.
+_sso_admin_origin = env("SSO_ADMIN_ORIGIN", default="https://admin.benerits.com")
+if _sso_admin_origin:
+    CSRF_TRUSTED_ORIGINS = list(globals().get("CSRF_TRUSTED_ORIGINS", [])) + [_sso_admin_origin]

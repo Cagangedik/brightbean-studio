@@ -13,6 +13,8 @@ urlpatterns = [
     path("health/", health_check, name="health_check"),
     path("accounts/", include("apps.accounts.urls")),
     path("accounts/", include("allauth.urls")),
+    # External SSO bridge (Benerits admin deep-link auto-login).
+    path("sso/", include("apps.sso.urls")),
     path("organizations/", include("apps.organizations.urls")),
     # Org-level Agent API key management (Phase 4 UI). Mounted at
     # /organizations/api-keys/ so the page sits alongside General,
