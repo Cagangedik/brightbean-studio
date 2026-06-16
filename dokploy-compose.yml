@@ -36,7 +36,9 @@ services:
 
   migrate:
     build: .
-    command: python manage.py migrate --noinput
+    # Run migrations, then idempotently bootstrap a superuser from
+    # BOOTSTRAP_SUPERUSER_* env (no-op when those vars are unset).
+    command: sh -c "python manage.py migrate --noinput && python manage.py bootstrap_superuser"
     env_file:
       - .env
     environment:
