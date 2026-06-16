@@ -15,6 +15,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     # External SSO bridge (Benerits admin deep-link auto-login).
     path("sso/", include("apps.sso.urls")),
+    # Public legal pages (Terms / Privacy) — required by OAuth app reviews.
+    path("", include("apps.legal.urls")),
     path("organizations/", include("apps.organizations.urls")),
     # Org-level Agent API key management (Phase 4 UI). Mounted at
     # /organizations/api-keys/ so the page sits alongside General,

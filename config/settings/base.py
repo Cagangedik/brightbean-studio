@@ -78,6 +78,8 @@ LOCAL_APPS = [
     "apps.analytics",
     # External SSO bridge (Benerits admin → Brightbean deep-link auto-login).
     "apps.sso",
+    # Public Terms of Service / Privacy Policy pages (required by OAuth app reviews).
+    "apps.legal",
     "theme",
 ]
 

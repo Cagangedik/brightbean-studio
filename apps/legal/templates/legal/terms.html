@@ -1,0 +1,89 @@
+{% extends "legal/_base.html" %}
+
+{% block title %}Terms of Service · {{ company }}{% endblock %}
+{% block heading %}Terms of Service{% endblock %}
+
+{% block body %}
+<p>
+    These Terms of Service ("Terms") govern your access to and use of {{ app_name }}
+    (the "Service"), operated by {{ company }} ("we", "us"). By accessing or using
+    the Service you agree to be bound by these Terms. If you do not agree, do not use
+    the Service.
+</p>
+
+<h2>1. The Service</h2>
+<p>
+    {{ app_name }} is a social media management tool that lets authorised users
+    schedule, publish, and manage content across connected third-party platforms
+    (such as TikTok, Instagram, LinkedIn, YouTube and others) from a single dashboard.
+    The Service acts on your behalf only with the permissions you grant when you
+    connect an account.
+</p>
+
+<h2>2. Accounts and eligibility</h2>
+<ul>
+    <li>You must be at least 18 years old and authorised to act for any brand or
+        organisation whose accounts you connect.</li>
+    <li>You are responsible for maintaining the confidentiality of your credentials
+        and for all activity under your account.</li>
+    <li>You must provide accurate information and keep it up to date.</li>
+</ul>
+
+<h2>3. Connected third-party platforms</h2>
+<p>
+    When you connect a third-party account, you authorise {{ app_name }} to access and
+    use that platform's API on your behalf, strictly within the scopes you approve
+    (for example, reading basic profile information and publishing content you create
+    in the Service). Your use of each platform also remains subject to that platform's
+    own terms and policies, including the
+    <a href="https://www.tiktok.com/legal/page/global/terms-of-service/en" target="_blank" rel="noopener">TikTok Terms of Service</a>
+    where TikTok is connected. You are responsible for ensuring your content and use
+    comply with those terms.
+</p>
+
+<h2>4. Your content</h2>
+<p>
+    You retain ownership of the content you create, upload, or publish through the
+    Service. You grant us a limited licence to store, process, and transmit that
+    content solely to operate the Service (for example, to schedule and deliver a post
+    to a connected platform). You represent that you have the rights to the content you
+    publish and that it does not infringe any third party's rights or violate any law
+    or platform policy.
+</p>
+
+<h2>5. Acceptable use</h2>
+<ul>
+    <li>Do not use the Service to publish unlawful, infringing, deceptive, or harmful
+        content.</li>
+    <li>Do not attempt to circumvent platform rate limits, audits, or content policies.</li>
+    <li>Do not interfere with or attempt to gain unauthorised access to the Service or
+        its infrastructure.</li>
+</ul>
+
+<h2>6. Disclaimers and limitation of liability</h2>
+<p>
+    The Service is provided "as is" without warranties of any kind. We are not liable
+    for any indirect, incidental, or consequential damages, or for the availability,
+    actions, or policies of connected third-party platforms.
+</p>
+
+<h2>7. Termination</h2>
+<p>
+    You may stop using the Service and disconnect your accounts at any time. We may
+    suspend or terminate access if you violate these Terms or use the Service in a way
+    that risks harm to us, other users, or connected platforms.
+</p>
+
+<h2>8. Changes</h2>
+<p>
+    We may update these Terms from time to time. Material changes will be reflected by
+    updating the "Last updated" date above. Continued use of the Service after changes
+    take effect constitutes acceptance.
+</p>
+
+<h2>9. Contact</h2>
+<p>
+    Questions about these Terms can be sent to
+    <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+</p>
+{% endblock %}

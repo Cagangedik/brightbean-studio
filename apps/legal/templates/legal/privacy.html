@@ -1,0 +1,85 @@
+{% extends "legal/_base.html" %}
+
+{% block title %}Privacy Policy · {{ company }}{% endblock %}
+{% block heading %}Privacy Policy{% endblock %}
+
+{% block body %}
+<p>
+    This Privacy Policy explains how {{ company }} ("we", "us") collects, uses, and
+    protects information in connection with {{ app_name }} (the "Service"). By using
+    the Service you agree to the practices described here.
+</p>
+
+<h2>1. Information we collect</h2>
+<ul>
+    <li><strong>Account information</strong> — the name and email address you use to
+        sign in.</li>
+    <li><strong>Connected platform data</strong> — when you connect a third-party
+        account (such as TikTok), we receive access tokens and the basic profile and
+        statistics data permitted by the scopes you approve (for example, profile
+        name, follower and video counts, and your list of videos). We use this only to
+        display your accounts and to publish and report on content you create.</li>
+    <li><strong>Content you create</strong> — posts, captions, media, and schedules
+        you build in the Service.</li>
+    <li><strong>Usage and technical data</strong> — basic logs needed to operate and
+        secure the Service.</li>
+</ul>
+
+<h2>2. How we use information</h2>
+<ul>
+    <li>To provide the Service: authenticate you, display connected accounts, and
+        schedule and publish content you create to the platforms you connect.</li>
+    <li>To show you analytics about your own connected accounts and content.</li>
+    <li>To maintain security, prevent abuse, and comply with legal obligations.</li>
+</ul>
+<p>
+    We do <strong>not</strong> sell your personal information, and we do not use your
+    connected-platform data for advertising or for any purpose other than operating
+    the Service on your behalf.</p>
+
+<h2>3. Third-party platform data (including TikTok)</h2>
+<p>
+    Data obtained from TikTok and other connected platforms is used solely to provide
+    the features you request and is handled in accordance with each platform's
+    developer policies, including TikTok's
+    <a href="https://www.tiktok.com/legal/page/global/privacy-policy/en" target="_blank" rel="noopener">Privacy Policy</a>.
+    Access tokens are stored securely and are only used to act on your behalf within
+    the scopes you approved. You can revoke our access at any time from the connected
+    platform's settings or by disconnecting the account in the Service.
+</p>
+
+<h2>4. Data sharing</h2>
+<p>
+    We share information only with the connected platforms necessary to fulfil your
+    requests (for example, sending a post to TikTok), and with infrastructure
+    providers that host the Service under appropriate confidentiality obligations. We
+    may disclose information where required by law.
+</p>
+
+<h2>5. Data retention and deletion</h2>
+<p>
+    We retain your information for as long as your account is active or as needed to
+    provide the Service. You may request deletion of your account and associated data
+    by contacting us at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+    Disconnecting a platform removes its stored access tokens.
+</p>
+
+<h2>6. Security</h2>
+<p>
+    We use industry-standard measures to protect information in transit and at rest,
+    including encryption of sensitive credentials. No method of transmission or storage
+    is completely secure, but we work to protect your data.
+</p>
+
+<h2>7. Changes</h2>
+<p>
+    We may update this Policy from time to time. Material changes will be reflected by
+    updating the "Last updated" date above.
+</p>
+
+<h2>8. Contact</h2>
+<p>
+    Questions about this Policy or requests regarding your data can be sent to
+    <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+</p>
+{% endblock %}
